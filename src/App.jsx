@@ -18,16 +18,12 @@ import {
 } from "firebase/database";
 import logo from "./logo.png";
 
-// --- 1. CONFIGURAÇÃO DO BANCO DE DADOS ---
 const firebaseConfig = {
   apiKey: "AIzaSyAWGQyP2eQAqCU6n0fgO6Duq1V7oOE5B2I",
   authDomain: "app-de-presenca-85a94.firebaseapp.com",
   databaseURL: "https://app-de-presenca-85a94-default-rtdb.firebaseio.com",
   projectId: "app-de-presenca-85a94",
 };
-
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
 
 // --- FUNÇÃO PARA PEGAR AS INICIAIS (Ex: "Camila e Lucas" vira "C&L") ---
 const pegarIniciais = (nome) => {
@@ -653,11 +649,11 @@ export default function App() {
   return (
     <HashRouter>
       <Routes>
-        {/* O '/*' garante que se o link estiver meio errado, ele volta pro início */}
         <Route path="/" element={<PainelAdmin />} />
         <Route path="/evento/:idCasal" element={<DashboardEvento />} />
         <Route path="/convite/:idCasal" element={<TelaConvidados />} />
         <Route path="/portaria/:idCasal" element={<TelaPortaria />} />
+        {/* Se o link vier sem a hashtag, isso aqui tenta consertar: */}
         <Route path="*" element={<PainelAdmin />} />
       </Routes>
     </HashRouter>
