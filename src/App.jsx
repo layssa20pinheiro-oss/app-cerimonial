@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { HashRouter, Routes, Route, Link, useParams } from "react-router-dom";
+import {
+  HashRouter,
+  Routes,
+  Route,
+  Link,
+  useParams,
+  useNavigate,
+} from "react-router-dom";
 import { initializeApp } from "firebase/app";
 import {
   getDatabase,
@@ -22,12 +29,24 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-// --- 2. PAINEL CENTRAL (Onde você cria os casamentos) ---
+// --- FUNÇÃO PARA PEGAR AS INICIAIS (Ex: "Camila e Lucas" vira "C&L") ---
+const pegarIniciais = (nome) => {
+  const partes = nome
+    .replace(/ e /gi, " & ")
+    .split("&")
+    .map((p) => p.trim());
+  if (partes.length > 1 && partes[1])
+    return (partes[0][0] + "&" + partes[1][0]).toUpperCase();
+  return nome.substring(0, 2).toUpperCase();
+};
+
+// --- 2. NOVO PAINEL CENTRAL (Estilo Assessoria VIP) ---
 function PainelAdmin() {
   const [nomeCasal, setNomeCasal] = useState("");
+  const [dataEvento, setDataEvento] = useState("");
   const [casamentos, setCasamentos] = useState([]);
+  const navigate = useNavigate();
 
-  // Puxa a lista de casamentos já criados
   useEffect(() => {
     const casamentosRef = ref(database, "casamentos_cadastrados");
     onValue(casamentosRef, (snapshot) => {
@@ -46,146 +65,189 @@ function PainelAdmin() {
 
   const criarNovoCasamento = (e) => {
     e.preventDefault();
-    // Cria um link limpo (ex: "Ana e Carlos" vira "ana-e-carlos")
     const idUrl = nomeCasal
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)+/g, "");
-
     if (!idUrl) return alert("Digite um nome válido!");
 
     const novoRef = ref(database, `casamentos_cadastrados/${idUrl}`);
-    set(novoRef, { nomeExibicao: nomeCasal, idUrl: idUrl })
-      .then(() => setNomeCasal(""))
+    set(novoRef, {
+      nomeExibicao: nomeCasal,
+      idUrl: idUrl,
+      data: dataEvento || "Data não definida",
+      tipo: "Casamento",
+    })
+      .then(() => {
+        setNomeCasal("");
+        setDataEvento("");
+      })
       .catch((error) => alert("Erro ao criar: " + error.message));
   };
-
-  const linkBase = window.location.origin + window.location.pathname;
 
   return (
     <div
       style={{
-        backgroundColor: "#f0f2f5",
+        backgroundColor: "#f5f7fa",
         minHeight: "100vh",
-        padding: "40px 20px",
         fontFamily: "sans-serif",
       }}
     >
+      {/* Cabeçalho Verde Água estilo Assessoria VIP */}
       <div
         style={{
-          maxWidth: "800px",
-          margin: "0 auto",
-          backgroundColor: "white",
-          padding: "30px",
-          borderRadius: "10px",
-          boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+          backgroundColor: "#2cbdbd",
+          padding: "40px 20px",
+          borderBottomLeftRadius: "30px",
+          borderBottomRightRadius: "30px",
+          color: "white",
+          boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
         }}
       >
-        <h1
-          style={{
-            textAlign: "center",
-            color: "#333",
-            borderBottom: "2px solid #eee",
-            paddingBottom: "10px",
-          }}
-        >
-          🏢 Meu Sistema de Cerimonial
-        </h1>
+        <h1 style={{ margin: 0, fontSize: "28px" }}>Meus eventos</h1>
+      </div>
 
-        <form
-          onSubmit={criarNovoCasamento}
+      <div
+        style={{ padding: "20px", maxWidth: "600px", margin: "-20px auto 0" }}
+      >
+        {/* Formulário de Criação Escondidinho */}
+        <div
           style={{
-            display: "flex",
-            gap: "10px",
-            marginTop: "30px",
-            marginBottom: "40px",
+            backgroundColor: "white",
+            padding: "15px",
+            borderRadius: "10px",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+            marginBottom: "30px",
           }}
         >
-          <input
-            type="text"
-            placeholder="Nome dos Noivos (Ex: Ana & Carlos)"
-            value={nomeCasal}
-            onChange={(e) => setNomeCasal(e.target.value)}
-            required
-            style={{
-              flex: 1,
-              padding: "15px",
-              fontSize: "16px",
-              borderRadius: "5px",
-              border: "1px solid #ccc",
-            }}
-          />
-          <button
-            type="submit"
-            style={{
-              padding: "15px 25px",
-              fontSize: "16px",
-              backgroundColor: "#007bff",
-              color: "white",
-              border: "none",
-              borderRadius: "5px",
-              cursor: "pointer",
-              fontWeight: "bold",
-            }}
+          <form
+            onSubmit={criarNovoCasamento}
+            style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}
           >
-            ➕ Criar Evento
-          </button>
-        </form>
+            <input
+              type="text"
+              placeholder="Nome dos Noivos"
+              value={nomeCasal}
+              onChange={(e) => setNomeCasal(e.target.value)}
+              required
+              style={{
+                flex: "1 1 100%",
+                padding: "12px",
+                borderRadius: "5px",
+                border: "1px solid #ddd",
+              }}
+            />
+            <input
+              type="date"
+              value={dataEvento}
+              onChange={(e) => setDataEvento(e.target.value)}
+              required
+              style={{
+                flex: "1 1 calc(50% - 5px)",
+                padding: "12px",
+                borderRadius: "5px",
+                border: "1px solid #ddd",
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                flex: "1 1 calc(50% - 5px)",
+                padding: "12px",
+                backgroundColor: "#2cbdbd",
+                color: "white",
+                border: "none",
+                borderRadius: "5px",
+                fontWeight: "bold",
+                cursor: "pointer",
+              }}
+            >
+              + Cadastrar
+            </button>
+          </form>
+        </div>
 
-        <h3 style={{ color: "#555" }}>Casamentos Ativos:</h3>
+        {/* Lista de Cartões (O visual que você pediu!) */}
         <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
           {casamentos.map((casal) => (
             <div
               key={casal.id}
+              onClick={() => navigate(`/evento/${casal.idUrl}`)}
               style={{
-                border: "1px solid #ddd",
+                backgroundColor: "white",
                 padding: "20px",
-                borderRadius: "8px",
-                backgroundColor: "#fafafa",
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                display: "flex",
+                alignItems: "center",
+                gap: "20px",
+                cursor: "pointer",
+                transition: "transform 0.2s",
               }}
+              onMouseOver={(e) =>
+                (e.currentTarget.style.transform = "scale(1.02)")
+              }
+              onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
-              <h2 style={{ margin: "0 0 15px 0", color: "#333" }}>
-                {casal.nomeExibicao}
-              </h2>
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                <Link
-                  to={`/convite/${casal.idUrl}`}
-                  target="_blank"
-                  style={{
-                    padding: "10px 15px",
-                    backgroundColor: "#7f807f",
-                    color: "white",
-                    textDecoration: "none",
-                    borderRadius: "5px",
-                    fontWeight: "bold",
-                  }}
-                >
-                  💌 Ver Convite
-                </Link>
-                <Link
-                  to={`/portaria/${casal.idUrl}`}
-                  target="_blank"
-                  style={{
-                    padding: "10px 15px",
-                    backgroundColor: "#1a1a1a",
-                    color: "#d4af37",
-                    textDecoration: "none",
-                    borderRadius: "5px",
-                    fontWeight: "bold",
-                  }}
-                >
-                  👑 Área VIP (Portaria)
-                </Link>
+              {/* Bolinha com Iniciais */}
+              <div
+                style={{
+                  width: "65px",
+                  height: "65px",
+                  borderRadius: "50%",
+                  backgroundColor: "#f0f0f0",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  fontSize: "20px",
+                  fontWeight: "bold",
+                  color: "#666",
+                  flexShrink: 0,
+                }}
+              >
+                {pegarIniciais(casal.nomeExibicao)}
               </div>
-              <p style={{ marginTop: "15px", fontSize: "13px", color: "#666" }}>
-                <strong>Link para os noivos enviarem:</strong>
-                <br />
-                {linkBase}#/convite/{casal.idUrl}
-              </p>
+
+              {/* Textos do Cartão */}
+              <div style={{ flex: 1 }}>
+                <p
+                  style={{
+                    margin: "0 0 5px 0",
+                    fontSize: "13px",
+                    color: "#888",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {casal.data.split("-").reverse().join("/")} • Evento
+                </p>
+                <p
+                  style={{
+                    margin: "0 0 2px 0",
+                    fontSize: "14px",
+                    color: "#888",
+                  }}
+                >
+                  {casal.tipo}
+                </p>
+                <h3
+                  style={{
+                    margin: "0",
+                    fontSize: "18px",
+                    color: "#333",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {casal.nomeExibicao}
+                </h3>
+              </div>
             </div>
           ))}
           {casamentos.length === 0 && (
-            <p style={{ color: "#888" }}>Nenhum casamento cadastrado ainda.</p>
+            <p
+              style={{ textAlign: "center", color: "#999", marginTop: "20px" }}
+            >
+              Nenhum evento criado ainda.
+            </p>
           )}
         </div>
       </div>
@@ -193,9 +255,143 @@ function PainelAdmin() {
   );
 }
 
-// --- 3. TELA DOS CONVIDADOS (Agora é Dinâmica!) ---
+// --- 3. DASHBOARD DO EVENTO (A Tela das Opções) ---
+function DashboardEvento() {
+  const { idCasal } = useParams();
+  const navigate = useNavigate();
+  const linkBase = window.location.origin + window.location.pathname;
+
+  return (
+    <div
+      style={{
+        backgroundColor: "#f5f7fa",
+        minHeight: "100vh",
+        fontFamily: "sans-serif",
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: "#333",
+          padding: "20px",
+          color: "white",
+          display: "flex",
+          alignItems: "center",
+          gap: "15px",
+        }}
+      >
+        <button
+          onClick={() => navigate("/")}
+          style={{
+            background: "none",
+            border: "none",
+            color: "white",
+            fontSize: "20px",
+            cursor: "pointer",
+          }}
+        >
+          ⬅ Voltar
+        </button>
+        <h2 style={{ margin: 0, textTransform: "capitalize" }}>
+          Gestão: {idCasal.replace(/-/g, " ")}
+        </h2>
+      </div>
+
+      <div
+        style={{
+          padding: "30px 20px",
+          maxWidth: "600px",
+          margin: "0 auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: "20px",
+        }}
+      >
+        {/* Bloco do Convite */}
+        <div
+          style={{
+            backgroundColor: "white",
+            padding: "25px",
+            borderRadius: "10px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          }}
+        >
+          <h3 style={{ margin: "0 0 15px 0", color: "#333" }}>
+            💌 Formulário de Presença
+          </h3>
+          <p style={{ fontSize: "14px", color: "#666" }}>
+            Envie este link para os convidados confirmarem presença:
+          </p>
+          <input
+            type="text"
+            readOnly
+            value={`${linkBase}#/convite/${idCasal}`}
+            style={{
+              width: "100%",
+              padding: "10px",
+              backgroundColor: "#f0f0f0",
+              border: "1px solid #ddd",
+              borderRadius: "5px",
+              marginBottom: "15px",
+              boxSizing: "border-box",
+            }}
+          />
+          <Link
+            to={`/convite/${idCasal}`}
+            target="_blank"
+            style={{
+              display: "inline-block",
+              padding: "12px 20px",
+              backgroundColor: "#007bff",
+              color: "white",
+              textDecoration: "none",
+              borderRadius: "5px",
+              fontWeight: "bold",
+            }}
+          >
+            Abrir Formulário
+          </Link>
+        </div>
+
+        {/* Bloco da Portaria VIP */}
+        <div
+          style={{
+            backgroundColor: "#1a1a1a",
+            padding: "25px",
+            borderRadius: "10px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+            color: "white",
+          }}
+        >
+          <h3 style={{ margin: "0 0 15px 0", color: "#d4af37" }}>
+            👑 Área VIP (Portaria)
+          </h3>
+          <p style={{ fontSize: "14px", color: "#ccc" }}>
+            Área exclusiva para a equipe do cerimonial dar o check-in na porta.
+          </p>
+          <Link
+            to={`/portaria/${idCasal}`}
+            style={{
+              display: "inline-block",
+              padding: "12px 20px",
+              backgroundColor: "#d4af37",
+              color: "#1a1a1a",
+              textDecoration: "none",
+              borderRadius: "5px",
+              fontWeight: "bold",
+              marginTop: "10px",
+            }}
+          >
+            Acessar Portaria
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- 4. TELA DOS CONVIDADOS (Intacta) ---
 function TelaConvidados() {
-  const { idCasal } = useParams(); // Pega o nome do casal lá do link!
+  const { idCasal } = useParams();
   const [nome, setNome] = useState("");
   const [status, setStatus] = useState("confirmado");
   const [loading, setLoading] = useState(false);
@@ -203,19 +399,17 @@ function TelaConvidados() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
-
-    // Salva na gaveta exata desse casal específico!
     const convidadosRef = ref(database, `convidados_por_casal/${idCasal}`);
     const novoConvidadoRef = push(convidadosRef);
 
     set(novoConvidadoRef, {
-      nome: nome,
-      status: status,
+      nome,
+      status,
       data_confirmacao: new Date().toISOString(),
       checkin: false,
     })
       .then(() => {
-        alert(`Obrigado, ${nome}! Sua resposta foi registrada com sucesso.`);
+        alert(`Obrigado, ${nome}! Sua resposta foi registrada.`);
         setNome("");
         setLoading(false);
       })
@@ -248,7 +442,6 @@ function TelaConvidados() {
           backgroundColor: "white",
           padding: "35px",
           borderRadius: "15px",
-          boxShadow: "0 8px 20px rgba(0,0,0,0.3)",
           width: "100%",
           maxWidth: "430px",
           boxSizing: "border-box",
@@ -272,20 +465,15 @@ function TelaConvidados() {
             fontSize: "16px",
           }}
         >
-          Por favor, preencha os dados abaixo para confirmar sua presença.
+          Preencha para confirmar presença.
         </p>
         <form
           onSubmit={handleSubmit}
           style={{ display: "flex", flexDirection: "column", gap: "18px" }}
         >
-          <label
-            style={{ fontSize: "14px", color: "#555", marginBottom: "-10px" }}
-          >
-            Seu Nome Completo:
-          </label>
           <input
             type="text"
-            placeholder="Ex: João Silva da Costa"
+            placeholder="Seu Nome Completo"
             value={nome}
             onChange={(e) => setNome(e.target.value)}
             required
@@ -296,11 +484,6 @@ function TelaConvidados() {
               border: "1px solid #ccc",
             }}
           />
-          <label
-            style={{ fontSize: "14px", color: "#555", marginBottom: "-10px" }}
-          >
-            Sua Resposta:
-          </label>
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
@@ -328,7 +511,6 @@ function TelaConvidados() {
               borderRadius: "5px",
               cursor: "pointer",
               fontWeight: "bold",
-              marginTop: "10px",
             }}
           >
             {loading ? "Enviando..." : "Confirmar Presença"}
@@ -339,14 +521,13 @@ function TelaConvidados() {
   );
 }
 
-// --- 4. TELA VIP DA PORTARIA (Dinâmica também!) ---
+// --- 5. TELA DA PORTARIA (Intacta) ---
 function TelaPortaria() {
-  const { idCasal } = useParams(); // Pega o nome do casal do link
+  const { idCasal } = useParams();
   const [convidados, setConvidados] = useState([]);
   const [busca, setBusca] = useState("");
 
   useEffect(() => {
-    // Puxa só a lista desse casamento específico
     const convidadosRef = ref(database, `convidados_por_casal/${idCasal}`);
     onValue(convidadosRef, (snapshot) => {
       const dados = snapshot.val();
@@ -355,8 +536,7 @@ function TelaPortaria() {
           id: key,
           ...dados[key],
         }));
-        const confirmados = lista.filter((c) => c.status === "confirmado");
-        setConvidados(confirmados);
+        setConvidados(lista.filter((c) => c.status === "confirmado"));
       } else {
         setConvidados([]);
       }
@@ -368,10 +548,9 @@ function TelaPortaria() {
     update(convidadoRef, { checkin: !jaEntrou });
   };
 
-  const convidadosFiltrados = convidados.filter((c) =>
+  const filtrados = convidados.filter((c) =>
     c.nome.toLowerCase().includes(busca.toLowerCase())
   );
-  const totalPresentes = convidados.filter((c) => c.checkin).length;
 
   return (
     <div
@@ -407,7 +586,8 @@ function TelaPortaria() {
             <strong>Confirmados:</strong> {convidados.length}
           </div>
           <div>
-            <strong>Já Entraram:</strong> {totalPresentes}
+            <strong>Já Entraram:</strong>{" "}
+            {convidados.filter((c) => c.checkin).length}
           </div>
         </div>
         <input
@@ -420,20 +600,19 @@ function TelaPortaria() {
             padding: "15px",
             borderRadius: "8px",
             border: "none",
-            fontSize: "16px",
             marginBottom: "20px",
             boxSizing: "border-box",
           }}
         />
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          {convidadosFiltrados.map((convidado) => (
+          {filtrados.map((c) => (
             <div
-              key={convidado.id}
+              key={c.id}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                backgroundColor: convidado.checkin ? "#2e4a2e" : "#333",
+                backgroundColor: c.checkin ? "#2e4a2e" : "#333",
                 padding: "15px",
                 borderRadius: "8px",
               }}
@@ -442,44 +621,40 @@ function TelaPortaria() {
                 style={{
                   fontSize: "18px",
                   fontWeight: "bold",
-                  textDecoration: convidado.checkin ? "line-through" : "none",
+                  textDecoration: c.checkin ? "line-through" : "none",
                 }}
               >
-                {convidado.nome}
+                {c.nome}
               </span>
               <button
-                onClick={() => fazerCheckin(convidado.id, convidado.checkin)}
+                onClick={() => fazerCheckin(c.id, c.checkin)}
                 style={{
                   padding: "10px 15px",
                   borderRadius: "5px",
                   border: "none",
                   fontWeight: "bold",
                   cursor: "pointer",
-                  backgroundColor: convidado.checkin ? "#ff4d4d" : "#4CAF50",
+                  backgroundColor: c.checkin ? "#ff4d4d" : "#4CAF50",
                   color: "white",
                 }}
               >
-                {convidado.checkin ? "Desfazer" : "✅ Entrou"}
+                {c.checkin ? "Desfazer" : "✅ Entrou"}
               </button>
             </div>
           ))}
-          {convidadosFiltrados.length === 0 && (
-            <p style={{ textAlign: "center", color: "#888" }}>
-              Nenhum convidado encontrado.
-            </p>
-          )}
         </div>
       </div>
     </div>
   );
 }
 
-// --- 5. O CÉREBRO MESTRE (Distribui os Links) ---
+// --- 6. O CÉREBRO MESTRE DAS ROTAS ---
 export default function App() {
   return (
     <HashRouter>
       <Routes>
         <Route path="/" element={<PainelAdmin />} />
+        <Route path="/evento/:idCasal" element={<DashboardEvento />} />
         <Route path="/convite/:idCasal" element={<TelaConvidados />} />
         <Route path="/portaria/:idCasal" element={<TelaPortaria />} />
       </Routes>
