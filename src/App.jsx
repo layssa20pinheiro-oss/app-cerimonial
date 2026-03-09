@@ -25,7 +25,11 @@ const firebaseConfig = {
   projectId: "app-de-presenca-85a94",
 };
 
-// --- FUNÇÃO PARA PEGAR AS INICIAIS (Ex: "Camila e Lucas" vira "C&L") ---
+// ADICIONE ESTAS DUAS LINHAS AQUI EMBAIXO:
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+
+// --- FUNÇÃO PARA PEGAR AS INICIAIS...
 const pegarIniciais = (nome) => {
   const partes = nome
     .replace(/ e /gi, " & ")
