@@ -653,10 +653,12 @@ export default function App() {
   return (
     <HashRouter>
       <Routes>
+        {/* O '/*' garante que se o link estiver meio errado, ele volta pro início */}
         <Route path="/" element={<PainelAdmin />} />
         <Route path="/evento/:idCasal" element={<DashboardEvento />} />
         <Route path="/convite/:idCasal" element={<TelaConvidados />} />
         <Route path="/portaria/:idCasal" element={<TelaPortaria />} />
+        <Route path="*" element={<PainelAdmin />} />
       </Routes>
     </HashRouter>
   );
