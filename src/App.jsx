@@ -617,6 +617,7 @@ function TelaConvidados() {
 // --- 5. TELA DA PORTARIA ---
 function TelaPortaria() {
   const { idCasal } = useParams();
+  const navigate = useNavigate();
   const [convidados, setConvidados] = useState([]);
   const [busca, setBusca] = useState("");
 
@@ -629,6 +630,7 @@ function TelaPortaria() {
           id: key,
           ...dados[key],
         }));
+        // Filtra para mostrar apenas quem confirmou que vai
         setConvidados(lista.filter((c) => c.status === "confirmado"));
       } else {
         setConvidados([]);
@@ -636,105 +638,255 @@ function TelaPortaria() {
     });
   }, [idCasal]);
 
+  // Função para dar o Check-in
   const fazerCheckin = (id, jaEntrou) => {
     const convidadoRef = ref(database, `convidados_por_casal/${idCasal}/${id}`);
     update(convidadoRef, { checkin: !jaEntrou });
   };
 
+  // Função Mágica para definir a mesa na hora!
+  const definirMesa = (id, mesaAtual) => {
+    const novaMesa = window.prompt(
+      "Digite o número ou nome da mesa para este convidado:",
+      mesaAtual || ""
+    );
+    // Se a pessoa não cancelar a caixinha, ele salva a mesa no Firebase
+    if (novaMesa !== null) {
+      const convidadoRef = ref(
+        database,
+        `convidados_por_casal/${idCasal}/${id}`
+      );
+      update(convidadoRef, { mesa: novaMesa });
+    }
+  };
+
   const filtrados = convidados.filter((c) =>
     c.nome.toLowerCase().includes(busca.toLowerCase())
   );
+  const totalConfirmados = convidados.length;
+  const totalPresentes = convidados.filter((c) => c.checkin).length;
 
   return (
     <div
       style={{
-        backgroundColor: "#1a1a1a",
+        backgroundColor: "#f5f7fa",
         minHeight: "100vh",
-        padding: "20px",
         fontFamily: "sans-serif",
-        color: "white",
       }}
     >
-      <div style={{ maxWidth: "600px", margin: "0 auto" }}>
-        <h1
+      {/* Cabeçalho Verde Água Padrão */}
+      <div
+        style={{
+          backgroundColor: "#2cbdbd",
+          padding: "40px 20px",
+          borderBottomLeftRadius: "30px",
+          borderBottomRightRadius: "30px",
+          color: "white",
+          boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+          display: "flex",
+          alignItems: "center",
+          gap: "15px",
+        }}
+      >
+        <button
+          onClick={() => navigate(`/evento/${idCasal}`)}
           style={{
-            textAlign: "center",
-            color: "#d4af37",
-            textTransform: "capitalize",
+            background: "none",
+            border: "none",
+            color: "white",
+            fontSize: "22px",
+            cursor: "pointer",
+            padding: "0",
           }}
         >
-          👑 VIP Portaria - {idCasal.replace(/-/g, " ")}
-        </h1>
+          ⬅ Voltar
+        </button>
+      </div>
+
+      <div
+        style={{ padding: "20px", maxWidth: "600px", margin: "-20px auto 0" }}
+      >
+        {/* Título da Página */}
+        <div
+          style={{
+            textAlign: "center",
+            marginBottom: "20px",
+            marginTop: "10px",
+          }}
+        >
+          <h2 style={{ margin: 0, color: "#333", fontSize: "22px" }}>
+            📋 Portaria VIP
+          </h2>
+        </div>
+
+        {/* Painel de Contagem Clean */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            backgroundColor: "#333",
-            padding: "15px",
-            borderRadius: "10px",
+            backgroundColor: "white",
+            padding: "20px",
+            borderRadius: "15px",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
             marginBottom: "20px",
           }}
         >
-          <div>
-            <strong>Confirmados:</strong> {convidados.length}
+          <div
+            style={{
+              textAlign: "center",
+              flex: 1,
+              borderRight: "1px solid #eee",
+            }}
+          >
+            <span
+              style={{
+                display: "block",
+                fontSize: "24px",
+                fontWeight: "bold",
+                color: "#333",
+              }}
+            >
+              {totalConfirmados}
+            </span>
+            <span
+              style={{
+                fontSize: "12px",
+                color: "#888",
+                textTransform: "uppercase",
+              }}
+            >
+              Confirmados
+            </span>
           </div>
-          <div>
-            <strong>Já Entraram:</strong>{" "}
-            {convidados.filter((c) => c.checkin).length}
+          <div style={{ textAlign: "center", flex: 1 }}>
+            <span
+              style={{
+                display: "block",
+                fontSize: "24px",
+                fontWeight: "bold",
+                color: "#2cbdbd",
+              }}
+            >
+              {totalPresentes}
+            </span>
+            <span
+              style={{
+                fontSize: "12px",
+                color: "#888",
+                textTransform: "uppercase",
+              }}
+            >
+              Já Entraram
+            </span>
           </div>
         </div>
+
+        {/* Barra de Busca */}
         <input
           type="text"
-          placeholder="🔍 Buscar convidado..."
+          placeholder="🔍 Buscar pelo nome..."
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           style={{
             width: "100%",
-            padding: "15px",
-            borderRadius: "8px",
-            border: "none",
+            padding: "16px",
+            borderRadius: "10px",
+            border: "1px solid #ddd",
             marginBottom: "20px",
             boxSizing: "border-box",
+            fontSize: "16px",
+            outline: "none",
           }}
         />
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+
+        {/* Lista de Convidados */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {filtrados.map((c) => (
             <div
               key={c.id}
               style={{
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
-                backgroundColor: c.checkin ? "#2e4a2e" : "#333",
-                padding: "15px",
-                borderRadius: "8px",
+                backgroundColor: "white",
+                padding: "15px 20px",
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                borderLeft: c.checkin
+                  ? "5px solid #2cbdbd"
+                  : "5px solid transparent",
+                transition: "all 0.2s",
               }}
             >
-              <span
-                style={{
-                  fontSize: "18px",
-                  fontWeight: "bold",
-                  textDecoration: c.checkin ? "line-through" : "none",
-                }}
-              >
-                {c.nome}
-              </span>
-              <button
+              {/* Textos: Nome e Mesa */}
+              <div style={{ flex: 1 }}>
+                <span
+                  style={{
+                    display: "block",
+                    fontSize: "16px",
+                    fontWeight: "bold",
+                    color: c.checkin ? "#aaa" : "#333",
+                    textDecoration: c.checkin ? "line-through" : "none",
+                  }}
+                >
+                  {c.nome}
+                </span>
+
+                {/* A mágica da Mesa: Clicou, editou! */}
+                <span
+                  onClick={() => definirMesa(c.id, c.mesa)}
+                  style={{
+                    display: "inline-block",
+                    fontSize: "13px",
+                    color: c.mesa ? "#2cbdbd" : "#999",
+                    marginTop: "4px",
+                    cursor: "pointer",
+                    backgroundColor: "#f0f2f5",
+                    padding: "2px 8px",
+                    borderRadius: "4px",
+                  }}
+                >
+                  Mesa: {c.mesa ? c.mesa : "Não definida"} ✎
+                </span>
+              </div>
+
+              {/* Novo Quadradinho de Check-in (Muito mais chique) */}
+              <div
                 onClick={() => fazerCheckin(c.id, c.checkin)}
                 style={{
-                  padding: "10px 15px",
-                  borderRadius: "5px",
-                  border: "none",
-                  fontWeight: "bold",
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "8px",
+                  border: c.checkin ? "2px solid #2cbdbd" : "2px solid #ccc",
+                  backgroundColor: c.checkin ? "#2cbdbd" : "transparent",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
                   cursor: "pointer",
-                  backgroundColor: c.checkin ? "#ff4d4d" : "#4CAF50",
-                  color: "white",
+                  flexShrink: 0,
                 }}
               >
-                {c.checkin ? "Desfazer" : "✅ Entrou"}
-              </button>
+                {c.checkin && (
+                  <span
+                    style={{
+                      color: "white",
+                      fontSize: "18px",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    ✓
+                  </span>
+                )}
+              </div>
             </div>
           ))}
+
+          {filtrados.length === 0 && (
+            <p
+              style={{ textAlign: "center", color: "#999", marginTop: "20px" }}
+            >
+              Nenhum convidado encontrado.
+            </p>
+          )}
         </div>
       </div>
     </div>
