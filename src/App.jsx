@@ -259,7 +259,17 @@ function PainelAdmin() {
 function DashboardEvento() {
   const { idCasal } = useParams();
   const navigate = useNavigate();
+  // Link limpo para os convidados
   const linkConvite = `${window.location.origin}/convite/${idCasal}`;
+
+  // Função simples para o botão de copiar o link
+  const copiarLink = () => {
+    navigator.clipboard.writeText(linkConvite).then(() => {
+      alert(
+        "Link copiado para o seu celular/computador! Agora é só colar no WhatsApp."
+      );
+    });
+  };
 
   return (
     <div
@@ -269,11 +279,15 @@ function DashboardEvento() {
         fontFamily: "sans-serif",
       }}
     >
+      {/* Cabeçalho Verde Água (Exatamente igual à tela inicial) */}
       <div
         style={{
-          backgroundColor: "#333",
-          padding: "20px",
+          backgroundColor: "#2cbdbd",
+          padding: "40px 20px",
+          borderBottomLeftRadius: "30px",
+          borderBottomRightRadius: "30px",
           color: "white",
+          boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
           display: "flex",
           alignItems: "center",
           gap: "15px",
@@ -285,98 +299,182 @@ function DashboardEvento() {
             background: "none",
             border: "none",
             color: "white",
-            fontSize: "20px",
+            fontSize: "22px",
             cursor: "pointer",
+            padding: "0",
           }}
         >
           ⬅ Voltar
         </button>
-        <h2 style={{ margin: 0, textTransform: "capitalize" }}>
-          Gestão: {idCasal.replace(/-/g, " ")}
-        </h2>
       </div>
 
       <div
         style={{
-          padding: "30px 20px",
+          padding: "20px",
           maxWidth: "600px",
-          margin: "0 auto",
+          margin: "-20px auto 0",
           display: "flex",
           flexDirection: "column",
           gap: "20px",
         }}
       >
+        {/* Título Delicado fora do cabeçalho */}
+        <div
+          style={{
+            textAlign: "center",
+            marginBottom: "5px",
+            marginTop: "10px",
+          }}
+        >
+          <h2
+            style={{
+              margin: 0,
+              color: "#333",
+              textTransform: "capitalize",
+              fontSize: "22px",
+            }}
+          >
+            Gestão: {idCasal.replace(/-/g, " ")}
+          </h2>
+        </div>
+
+        {/* Bloco do Convite (Claro e Delicado) */}
         <div
           style={{
             backgroundColor: "white",
             padding: "25px",
-            borderRadius: "10px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            borderRadius: "15px",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
           }}
         >
-          <h3 style={{ margin: "0 0 15px 0", color: "#333" }}>
-            💌 Formulário de Presença
-          </h3>
-          <p style={{ fontSize: "14px", color: "#666" }}>
-            Envie este link para os convidados:
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "15px",
+            }}
+          >
+            <span style={{ fontSize: "22px" }}>💌</span>
+            <h3 style={{ margin: 0, color: "#333", fontSize: "18px" }}>
+              Link do Convite
+            </h3>
+          </div>
+          <p
+            style={{
+              fontSize: "14px",
+              color: "#666",
+              marginTop: 0,
+              marginBottom: "15px",
+            }}
+          >
+            Envie o link abaixo para os convidados confirmarem presença:
           </p>
+
           <input
             type="text"
             readOnly
             value={linkConvite}
             style={{
               width: "100%",
-              padding: "10px",
-              backgroundColor: "#f0f0f0",
-              border: "1px solid #ddd",
-              borderRadius: "5px",
+              padding: "12px",
+              backgroundColor: "#f9f9f9",
+              border: "1px solid #eee",
+              borderRadius: "8px",
+              fontSize: "14px",
+              color: "#555",
               marginBottom: "15px",
               boxSizing: "border-box",
             }}
           />
-          <Link
-            to={`/convite/${idCasal}`}
-            target="_blank"
-            style={{
-              display: "inline-block",
-              padding: "12px 20px",
-              backgroundColor: "#007bff",
-              color: "white",
-              textDecoration: "none",
-              borderRadius: "5px",
-              fontWeight: "bold",
-            }}
-          >
-            Abrir Formulário
-          </Link>
+
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button
+              onClick={copiarLink}
+              style={{
+                flex: 1,
+                padding: "12px",
+                backgroundColor: "#2cbdbd",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                fontWeight: "bold",
+                fontSize: "14px",
+                cursor: "pointer",
+              }}
+            >
+              Copiar Link
+            </button>
+            <Link
+              to={`/convite/${idCasal}`}
+              target="_blank"
+              style={{
+                flex: 1,
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                padding: "12px",
+                backgroundColor: "#f0f2f5",
+                color: "#333",
+                textDecoration: "none",
+                borderRadius: "8px",
+                fontWeight: "bold",
+                fontSize: "14px",
+              }}
+            >
+              Testar Convite
+            </Link>
+          </div>
         </div>
 
+        {/* Bloco da Portaria VIP (Claro e Delicado) */}
         <div
           style={{
-            backgroundColor: "#1a1a1a",
+            backgroundColor: "white",
             padding: "25px",
-            borderRadius: "10px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-            color: "white",
+            borderRadius: "15px",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
           }}
         >
-          <h3 style={{ margin: "0 0 15px 0", color: "#d4af37" }}>
-            👑 Área VIP (Portaria)
-          </h3>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "15px",
+            }}
+          >
+            <span style={{ fontSize: "22px" }}>📋</span>
+            <h3 style={{ margin: 0, color: "#333", fontSize: "18px" }}>
+              Área da Portaria
+            </h3>
+          </div>
+          <p
+            style={{
+              fontSize: "14px",
+              color: "#666",
+              marginTop: 0,
+              marginBottom: "15px",
+            }}
+          >
+            Acesse a lista de confirmados para dar o check-in na porta do
+            evento.
+          </p>
           <Link
             to={`/portaria/${idCasal}`}
             style={{
-              display: "inline-block",
+              display: "block",
               padding: "12px 20px",
-              backgroundColor: "#d4af37",
-              color: "#1a1a1a",
+              backgroundColor: "#333",
+              color: "white",
               textDecoration: "none",
-              borderRadius: "5px",
+              borderRadius: "8px",
               fontWeight: "bold",
-              marginTop: "10px",
+              textAlign: "center",
+              fontSize: "14px",
             }}
           >
-            Acessar Portaria
+            Acessar Check-in VIP
           </Link>
         </div>
       </div>
