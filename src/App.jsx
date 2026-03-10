@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
+// Olha a mágica aqui: Trocamos o HashRouter pelo BrowserRouter!
 import {
-  HashRouter,
+  BrowserRouter,
   Routes,
   Route,
   Link,
@@ -26,19 +27,24 @@ const firebaseConfig = {
   projectId: "app-de-presenca-85a94",
 };
 
-// Inicialização (As "chaves" para ligar o banco)
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-// --- FUNÇÃO PARA PEGAR AS INICIAIS ---
+// --- CORREÇÃO DO BUG DO APAGÃO ---
 const pegarIniciais = (nome) => {
-  const partes = nome
-    .replace(/ e /gi, " & ")
-    .split("&")
-    .map((p) => p.trim());
-  if (partes.length > 1 && partes[1])
-    return (partes[0][0] + "&" + partes[1][0]).toUpperCase();
-  return nome.substring(0, 2).toUpperCase();
+  if (!nome) return "??"; // Proteção contra nome vazio
+  try {
+    const partes = nome
+      .replace(/ e /gi, " & ")
+      .split("&")
+      .map((p) => p.trim());
+    if (partes.length > 1 && partes[0].length > 0 && partes[1].length > 0) {
+      return (partes[0][0] + "&" + partes[1][0]).toUpperCase();
+    }
+    return nome.substring(0, 2).toUpperCase();
+  } catch (error) {
+    return "??"; // Se der erro na leitura, mostra ?? e não derruba o site
+  }
 };
 
 // --- 2. PAINEL ADMIN ---
@@ -70,6 +76,8 @@ function PainelAdmin() {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)+/g, "");
+    if (!idUrl) return alert("Digite um nome válido!");
+
     const novoRef = ref(database, `casamentos_cadastrados/${idUrl}`);
     set(novoRef, {
       nomeExibicao: nomeCasal,
@@ -81,7 +89,7 @@ function PainelAdmin() {
         setNomeCasal("");
         setDataEvento("");
       })
-      .catch((error) => alert("Erro: " + error.message));
+      .catch((error) => alert("Erro ao criar: " + error.message));
   };
 
   return (
@@ -99,10 +107,12 @@ function PainelAdmin() {
           borderBottomLeftRadius: "30px",
           borderBottomRightRadius: "30px",
           color: "white",
+          boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
         }}
       >
         <h1 style={{ margin: 0, fontSize: "28px" }}>Meus eventos</h1>
       </div>
+
       <div
         style={{ padding: "20px", maxWidth: "600px", margin: "-20px auto 0" }}
       >
@@ -154,12 +164,14 @@ function PainelAdmin() {
                 border: "none",
                 borderRadius: "5px",
                 fontWeight: "bold",
+                cursor: "pointer",
               }}
             >
               + Cadastrar
             </button>
           </form>
         </div>
+
         <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
           {casamentos.map((casal) => (
             <div
@@ -174,6 +186,7 @@ function PainelAdmin() {
                 alignItems: "center",
                 gap: "20px",
                 cursor: "pointer",
+                transition: "transform 0.2s",
               }}
             >
               <div
@@ -188,31 +201,64 @@ function PainelAdmin() {
                   fontSize: "20px",
                   fontWeight: "bold",
                   color: "#666",
+                  flexShrink: 0,
                 }}
               >
                 {pegarIniciais(casal.nomeExibicao)}
               </div>
-              <div>
-                <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>
-                  {casal.data.split("-").reverse().join("/")}
+              <div style={{ flex: 1 }}>
+                <p
+                  style={{
+                    margin: "0 0 5px 0",
+                    fontSize: "13px",
+                    color: "#888",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {casal.data.split("-").reverse().join("/")} • Evento
                 </p>
-                <h3 style={{ margin: 0, fontSize: "18px", color: "#333" }}>
+                <p
+                  style={{
+                    margin: "0 0 2px 0",
+                    fontSize: "14px",
+                    color: "#888",
+                  }}
+                >
+                  {casal.tipo}
+                </p>
+                <h3
+                  style={{
+                    margin: "0",
+                    fontSize: "18px",
+                    color: "#333",
+                    textTransform: "capitalize",
+                  }}
+                >
                   {casal.nomeExibicao}
                 </h3>
               </div>
             </div>
           ))}
+          {casamentos.length === 0 && (
+            <p
+              style={{ textAlign: "center", color: "#999", marginTop: "20px" }}
+            >
+              Nenhum evento criado ainda.
+            </p>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-// --- 3. DASHBOARD ---
+// --- 3. DASHBOARD DO EVENTO ---
 function DashboardEvento() {
   const { idCasal } = useParams();
   const navigate = useNavigate();
-  const linkBase = window.location.origin + window.location.pathname;
+  // Link limpo, sem a hashtag!
+  const linkConvite = `${window.location.origin}/convite/${idCasal}`;
+
   return (
     <div
       style={{
@@ -243,11 +289,14 @@ function DashboardEvento() {
         >
           ⬅ Voltar
         </button>
-        <h2 style={{ margin: 0 }}>Gestão: {idCasal}</h2>
+        <h2 style={{ margin: 0, textTransform: "capitalize" }}>
+          Gestão: {idCasal.replace(/-/g, " ")}
+        </h2>
       </div>
+
       <div
         style={{
-          padding: "20px",
+          padding: "30px 20px",
           maxWidth: "600px",
           margin: "0 auto",
           display: "flex",
@@ -258,30 +307,73 @@ function DashboardEvento() {
         <div
           style={{
             backgroundColor: "white",
-            padding: "20px",
+            padding: "25px",
             borderRadius: "10px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
           }}
         >
-          <h3>💌 Link do Convite</h3>
+          <h3 style={{ margin: "0 0 15px 0", color: "#333" }}>
+            💌 Formulário de Presença
+          </h3>
+          <p style={{ fontSize: "14px", color: "#666" }}>
+            Envie este link para os convidados:
+          </p>
           <input
+            type="text"
             readOnly
-            value={`${linkBase}#/convite/${idCasal}`}
-            style={{ width: "100%", padding: "10px", marginBottom: "10px" }}
+            value={linkConvite}
+            style={{
+              width: "100%",
+              padding: "10px",
+              backgroundColor: "#f0f0f0",
+              border: "1px solid #ddd",
+              borderRadius: "5px",
+              marginBottom: "15px",
+              boxSizing: "border-box",
+            }}
           />
-          <Link to={`/convite/${idCasal}`} target="_blank">
-            Abrir Convite
+          <Link
+            to={`/convite/${idCasal}`}
+            target="_blank"
+            style={{
+              display: "inline-block",
+              padding: "12px 20px",
+              backgroundColor: "#007bff",
+              color: "white",
+              textDecoration: "none",
+              borderRadius: "5px",
+              fontWeight: "bold",
+            }}
+          >
+            Abrir Formulário
           </Link>
         </div>
+
         <div
           style={{
             backgroundColor: "#1a1a1a",
-            padding: "20px",
+            padding: "25px",
             borderRadius: "10px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
             color: "white",
           }}
         >
-          <h3 style={{ color: "#d4af37" }}>👑 Portaria</h3>
-          <Link to={`/portaria/${idCasal}`} style={{ color: "#d4af37" }}>
+          <h3 style={{ margin: "0 0 15px 0", color: "#d4af37" }}>
+            👑 Área VIP (Portaria)
+          </h3>
+          <Link
+            to={`/portaria/${idCasal}`}
+            style={{
+              display: "inline-block",
+              padding: "12px 20px",
+              backgroundColor: "#d4af37",
+              color: "#1a1a1a",
+              textDecoration: "none",
+              borderRadius: "5px",
+              fontWeight: "bold",
+              marginTop: "10px",
+            }}
+          >
             Acessar Portaria
           </Link>
         </div>
@@ -290,109 +382,277 @@ function DashboardEvento() {
   );
 }
 
-// --- 4. TELA CONVIDADOS ---
+// --- 4. TELA DOS CONVIDADOS ---
 function TelaConvidados() {
   const { idCasal } = useParams();
   const [nome, setNome] = useState("");
   const [status, setStatus] = useState("confirmado");
+  const [loading, setLoading] = useState(false);
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    setLoading(true);
     const convidadosRef = ref(database, `convidados_por_casal/${idCasal}`);
-    push(convidadosRef, {
+
+    // Jeito 100% seguro de salvar no Firebase
+    const novoConvidadoRef = push(convidadosRef);
+    set(novoConvidadoRef, {
       nome,
       status,
+      data_confirmacao: new Date().toISOString(),
       checkin: false,
-      data: new Date().toISOString(),
-    }).then(() => {
-      alert("Confirmado!");
-      setNome("");
-    });
+    })
+      .then(() => {
+        alert(`Obrigado, ${nome}! Sua resposta foi registrada.`);
+        setNome("");
+        setLoading(false);
+      })
+      .catch((error) => {
+        alert("Erro ao salvar: " + error.message);
+        setLoading(false);
+      });
   };
+
   return (
-    <div style={{ textAlign: "center", padding: "50px", fontFamily: "serif" }}>
-      <img src={logo} style={{ maxWidth: "200px" }} alt="logo" />
-      <h1>Casamento {idCasal}</h1>
-      <form
-        onSubmit={handleSubmit}
+    <div
+      style={{
+        backgroundColor: "#7f807f",
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "40px 20px",
+        fontFamily: "serif",
+        boxSizing: "border-box",
+      }}
+    >
+      <img
+        src={logo}
+        alt="Logo"
+        style={{ width: "100%", maxWidth: "300px", marginBottom: "30px" }}
+      />
+      <div
         style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "10px",
-          maxWidth: "300px",
-          margin: "0 auto",
+          backgroundColor: "white",
+          padding: "35px",
+          borderRadius: "15px",
+          width: "100%",
+          maxWidth: "430px",
+          boxSizing: "border-box",
         }}
       >
-        <input
-          placeholder="Nome"
-          value={nome}
-          onChange={(e) => setNome(e.target.value)}
-          required
-        />
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="confirmado">Confirmado</option>
-          <option value="nao">Não vou</option>
-        </select>
-        <button type="submit">Confirmar</button>
-      </form>
+        <h1
+          style={{
+            textAlign: "center",
+            margin: "0 0 10px",
+            fontSize: "26px",
+            textTransform: "capitalize",
+          }}
+        >
+          Casamento {idCasal.replace(/-/g, " ")} 💍
+        </h1>
+        <p
+          style={{
+            textAlign: "center",
+            color: "#666",
+            marginBottom: "30px",
+            fontSize: "16px",
+          }}
+        >
+          Preencha para confirmar presença.
+        </p>
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: "18px" }}
+        >
+          <input
+            type="text"
+            placeholder="Seu Nome Completo"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            required
+            style={{
+              padding: "14px",
+              fontSize: "16px",
+              borderRadius: "5px",
+              border: "1px solid #ccc",
+            }}
+          />
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            style={{
+              padding: "14px",
+              fontSize: "16px",
+              borderRadius: "5px",
+              border: "1px solid #ccc",
+              backgroundColor: "white",
+            }}
+          >
+            <option value="confirmado">Vou com certeza!</option>
+            <option value="talvez">Ainda não sei</option>
+            <option value="nao_vou">Não poderei ir</option>
+          </select>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              padding: "16px",
+              fontSize: "18px",
+              backgroundColor: "#7f807f",
+              color: "white",
+              border: "none",
+              borderRadius: "5px",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
+          >
+            {loading ? "Enviando..." : "Confirmar Presença"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
 
-// --- 5. TELA PORTARIA ---
+// --- 5. TELA DA PORTARIA ---
 function TelaPortaria() {
   const { idCasal } = useParams();
   const [convidados, setConvidados] = useState([]);
+  const [busca, setBusca] = useState("");
+
   useEffect(() => {
-    const refC = ref(database, `convidados_por_casal/${idCasal}`);
-    onValue(refC, (snap) => {
-      const d = snap.val();
-      if (d) setConvidados(Object.keys(d).map((k) => ({ id: k, ...d[k] })));
+    const convidadosRef = ref(database, `convidados_por_casal/${idCasal}`);
+    onValue(convidadosRef, (snapshot) => {
+      const dados = snapshot.val();
+      if (dados) {
+        const lista = Object.keys(dados).map((key) => ({
+          id: key,
+          ...dados[key],
+        }));
+        setConvidados(lista.filter((c) => c.status === "confirmado"));
+      } else {
+        setConvidados([]);
+      }
     });
   }, [idCasal]);
-  const check = (id, c) =>
-    update(ref(database, `convidados_por_casal/${idCasal}/${id}`), {
-      checkin: !c,
-    });
+
+  const fazerCheckin = (id, jaEntrou) => {
+    const convidadoRef = ref(database, `convidados_por_casal/${idCasal}/${id}`);
+    update(convidadoRef, { checkin: !jaEntrou });
+  };
+
+  const filtrados = convidados.filter((c) =>
+    c.nome.toLowerCase().includes(busca.toLowerCase())
+  );
+
   return (
     <div
       style={{
         backgroundColor: "#1a1a1a",
-        color: "white",
         minHeight: "100vh",
         padding: "20px",
+        fontFamily: "sans-serif",
+        color: "white",
       }}
     >
-      <h1>Portaria: {idCasal}</h1>
-      {convidados.map((c) => (
+      <div style={{ maxWidth: "600px", margin: "0 auto" }}>
+        <h1
+          style={{
+            textAlign: "center",
+            color: "#d4af37",
+            textTransform: "capitalize",
+          }}
+        >
+          👑 VIP Portaria - {idCasal.replace(/-/g, " ")}
+        </h1>
         <div
-          key={c.id}
           style={{
             display: "flex",
             justifyContent: "space-between",
-            padding: "10px",
-            borderBottom: "1px solid #333",
+            backgroundColor: "#333",
+            padding: "15px",
+            borderRadius: "10px",
+            marginBottom: "20px",
           }}
         >
-          <span>{c.nome}</span>
-          <button onClick={() => check(c.id, c.checkin)}>
-            {c.checkin ? "Desfazer" : "Entrou"}
-          </button>
+          <div>
+            <strong>Confirmados:</strong> {convidados.length}
+          </div>
+          <div>
+            <strong>Já Entraram:</strong>{" "}
+            {convidados.filter((c) => c.checkin).length}
+          </div>
         </div>
-      ))}
+        <input
+          type="text"
+          placeholder="🔍 Buscar convidado..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "15px",
+            borderRadius: "8px",
+            border: "none",
+            marginBottom: "20px",
+            boxSizing: "border-box",
+          }}
+        />
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          {filtrados.map((c) => (
+            <div
+              key={c.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                backgroundColor: c.checkin ? "#2e4a2e" : "#333",
+                padding: "15px",
+                borderRadius: "8px",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "18px",
+                  fontWeight: "bold",
+                  textDecoration: c.checkin ? "line-through" : "none",
+                }}
+              >
+                {c.nome}
+              </span>
+              <button
+                onClick={() => fazerCheckin(c.id, c.checkin)}
+                style={{
+                  padding: "10px 15px",
+                  borderRadius: "5px",
+                  border: "none",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  backgroundColor: c.checkin ? "#ff4d4d" : "#4CAF50",
+                  color: "white",
+                }}
+              >
+                {c.checkin ? "Desfazer" : "✅ Entrou"}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
-// --- 6. ROTAS ---
+// --- 6. ROTAS PROFISSIONAIS (Sem o '#') ---
 export default function App() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<PainelAdmin />} />
         <Route path="/evento/:idCasal" element={<DashboardEvento />} />
         <Route path="/convite/:idCasal" element={<TelaConvidados />} />
         <Route path="/portaria/:idCasal" element={<TelaPortaria />} />
+        <Route path="*" element={<PainelAdmin />} />
       </Routes>
-    </HashRouter>
+    </BrowserRouter>
   );
 }
