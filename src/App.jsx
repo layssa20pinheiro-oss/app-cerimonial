@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-// Olha a mágica aqui: Trocamos o HashRouter pelo BrowserRouter!
 import {
   BrowserRouter,
   Routes,
@@ -30,9 +29,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-// --- CORREÇÃO DO BUG DO APAGÃO ---
+// --- PROTEÇÃO DAS INICIAIS ---
 const pegarIniciais = (nome) => {
-  if (!nome) return "??"; // Proteção contra nome vazio
+  if (!nome) return "??";
   try {
     const partes = nome
       .replace(/ e /gi, " & ")
@@ -43,7 +42,7 @@ const pegarIniciais = (nome) => {
     }
     return nome.substring(0, 2).toUpperCase();
   } catch (error) {
-    return "??"; // Se der erro na leitura, mostra ?? e não derruba o site
+    return "??";
   }
 };
 
@@ -82,7 +81,7 @@ function PainelAdmin() {
     set(novoRef, {
       nomeExibicao: nomeCasal,
       idUrl: idUrl,
-      data: dataEvento || "Data não definida",
+      data: dataEvento || "", // Salva vazio se não tiver
       tipo: "Casamento",
     })
       .then(() => {
@@ -207,6 +206,7 @@ function PainelAdmin() {
                 {pegarIniciais(casal.nomeExibicao)}
               </div>
               <div style={{ flex: 1 }}>
+                {/* O ESCUDO DA DATA ESTÁ AQUI: */}
                 <p
                   style={{
                     margin: "0 0 5px 0",
@@ -215,7 +215,10 @@ function PainelAdmin() {
                     fontWeight: "bold",
                   }}
                 >
-                  {casal.data.split("-").reverse().join("/")} • Evento
+                  {casal.data && casal.data.includes("-")
+                    ? casal.data.split("-").reverse().join("/")
+                    : "Sem data"}{" "}
+                  • Evento
                 </p>
                 <p
                   style={{
@@ -224,7 +227,7 @@ function PainelAdmin() {
                     color: "#888",
                   }}
                 >
-                  {casal.tipo}
+                  {casal.tipo || "Casamento"}
                 </p>
                 <h3
                   style={{
@@ -256,7 +259,6 @@ function PainelAdmin() {
 function DashboardEvento() {
   const { idCasal } = useParams();
   const navigate = useNavigate();
-  // Link limpo, sem a hashtag!
   const linkConvite = `${window.location.origin}/convite/${idCasal}`;
 
   return (
@@ -394,7 +396,6 @@ function TelaConvidados() {
     setLoading(true);
     const convidadosRef = ref(database, `convidados_por_casal/${idCasal}`);
 
-    // Jeito 100% seguro de salvar no Firebase
     const novoConvidadoRef = push(convidadosRef);
     set(novoConvidadoRef, {
       nome,
@@ -642,7 +643,7 @@ function TelaPortaria() {
   );
 }
 
-// --- 6. ROTAS PROFISSIONAIS (Sem o '#') ---
+// --- 6. ROTAS PROFISSIONAIS ---
 export default function App() {
   return (
     <BrowserRouter>
