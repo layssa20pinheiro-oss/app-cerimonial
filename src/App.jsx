@@ -524,7 +524,7 @@ function DashboardEvento() {
 
 // --- 3. TELA DOS CONVIDADOS (AGORA POR FAMÍLIA!) ---
 function TelaConvidados() {
-  const { idCasal, telefoneUrl } = useParams(); // Pega o telefone escondido no link
+  const { idCasal, telefoneUrl } = useParams();
   const [membrosFamilia, setMembrosFamilia] = useState([]);
   const [nomeFamilia, setNomeFamilia] = useState("");
   const [loading, setLoading] = useState(true);
@@ -532,7 +532,6 @@ function TelaConvidados() {
   const [erroBusca, setErroBusca] = useState(false);
 
   useEffect(() => {
-    // Quando a tela abre, ela vasculha o banco de dados procurando o telefone do link
     const buscarFamilia = async () => {
       if (!telefoneUrl) {
         setLoading(false);
@@ -548,11 +547,17 @@ function TelaConvidados() {
           ...snapshot.val()[k],
         }));
 
-        // Acha a pessoa dona do celular
-        const donoDoCelular = todos.find((c) => c.telefone === telefoneUrl);
+        // 🪄 A CORREÇÃO ESTÁ AQUI: Limpa o número do banco para comparar perfeitamente com o link!
+        const donoDoCelular = todos.find((c) => {
+          if (!c.telefone) return false;
+          let numBanco = c.telefone.replace(/\D/g, ""); // Tira traços e espaços
+          if (numBanco.length === 10 || numBanco.length === 11) {
+            numBanco = "55" + numBanco; // Coloca o 55 se não tiver
+          }
+          return numBanco === telefoneUrl;
+        });
 
         if (donoDoCelular && donoDoCelular.familia) {
-          // Pega TODO MUNDO que tem o mesmo nome de família
           const familiaInteira = todos.filter(
             (c) => c.familia === donoDoCelular.familia
           );
@@ -570,7 +575,6 @@ function TelaConvidados() {
     buscarFamilia();
   }, [idCasal, telefoneUrl]);
 
-  // Função para mudar o status de uma pessoa específica na lista
   const atualizarStatusMembro = (index, novoStatus) => {
     const novaLista = [...membrosFamilia];
     novaLista[index].status = novoStatus;
@@ -581,7 +585,6 @@ function TelaConvidados() {
     e.preventDefault();
     setLoading(true);
 
-    // Salva a decisão de cada membro da família no Firebase
     for (let membro of membrosFamilia) {
       const membroRef = ref(
         database,
@@ -594,12 +597,10 @@ function TelaConvidados() {
     }
 
     setLoading(false);
-    // Cria um ID único para a família gerar o QR Code
     const idQrCodeFam = `FAM-${idCasal}-${nomeFamilia.replace(/\s+/g, "")}`;
     setTicketFinal({ nome: nomeFamilia, id: idQrCodeFam });
   };
 
-  // TELA DE ERRO (Se abrir o link sem telefone)
   if (!loading && erroBusca && !ticketFinal) {
     return (
       <div
@@ -633,7 +634,6 @@ function TelaConvidados() {
     );
   }
 
-  // TELA DO INGRESSO QR CODE
   if (ticketFinal) {
     return (
       <div
@@ -700,7 +700,6 @@ function TelaConvidados() {
     );
   }
 
-  // TELA DO FORMULÁRIO DA FAMÍLIA
   return (
     <div
       style={{
