@@ -781,26 +781,28 @@ function TelaPortaria() {
     }
   };
 
-  // --- 🪄 A MÁGICA DO WHATSAPP AQUI ---
+  // --- 🪄 A MÁGICA DO WHATSAPP AQUI (CORRIGIDA) ---
   const enviarWhatsApp = (telefone, nomeConvidado) => {
     // 1. Limpa tudo que não for número
     let numeroLimpo = telefone.replace(/\D/g, "");
 
-    // 2. Se a pessoa colocou só o DDD e o número (10 ou 11 dígitos), coloca o 55 do Brasil
+    // 2. Coloca o 55 do Brasil se precisar
     if (numeroLimpo.length === 10 || numeroLimpo.length === 11) {
       numeroLimpo = "55" + numeroLimpo;
     }
 
-    // 3. Formata o nome do Casal para a mensagem ficar bonita
+    // 3. Formata o nome do Casal
     const nomeCasalFormatado = idCasal
       .replace(/-/g, " ")
       .replace(/\b\w/g, (l) => l.toUpperCase());
-    const linkConvite = `${window.location.origin}/#/convite/${idCasal}`;
+
+    // 🎯 O LINK PERFEITO (Sem a hashtag!)
+    const linkConvite = `${window.location.origin}/convite/${idCasal}`;
 
     // 4. A mensagem Pronta!
     const mensagem = `Olá, ${nomeConvidado}! Tudo bem? Aqui é da assessoria do casamento de ${nomeCasalFormatado}. \n\nSegue o seu link exclusivo para confirmar a sua presença e ver as informações do nosso grande dia: \n🔗 ${linkConvite}`;
 
-    // 5. Cria o link oficial do WhatsApp e abre em uma nova aba
+    // 5. Cria o link oficial do WhatsApp e abre
     const url = `https://wa.me/${numeroLimpo}?text=${encodeURIComponent(
       mensagem
     )}`;
@@ -1056,7 +1058,6 @@ function TelaPortaria() {
                   🗑️
                 </span>
 
-                {/* BOTÃO DO WHATSAPP SÓ APARECE SE TIVER TELEFONE! */}
                 {abaAtiva === "pendente" && c.telefone && (
                   <div
                     style={{
