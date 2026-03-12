@@ -8,6 +8,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { initializeApp } from "firebase/app";
+// ATENÇÃO: Adicionei o "get" aqui em cima para o escudo anti-clones funcionar!
 import {
   getDatabase,
   ref,
@@ -15,6 +16,7 @@ import {
   set,
   onValue,
   update,
+  get,
 } from "firebase/database";
 import logo from "./logo.png";
 
@@ -81,7 +83,7 @@ function PainelAdmin() {
     set(novoRef, {
       nomeExibicao: nomeCasal,
       idUrl: idUrl,
-      data: dataEvento || "", // Salva vazio se não tiver
+      data: dataEvento || "",
       tipo: "Casamento",
     })
       .then(() => {
@@ -206,7 +208,6 @@ function PainelAdmin() {
                 {pegarIniciais(casal.nomeExibicao)}
               </div>
               <div style={{ flex: 1 }}>
-                {/* O ESCUDO DA DATA ESTÁ AQUI: */}
                 <p
                   style={{
                     margin: "0 0 5px 0",
@@ -267,50 +268,81 @@ function DashboardEvento() {
     });
   };
 
-  // --- A NOVA MÁGICA DA PLANILHA (AGORA COM MESA) ---
-  const importarPlanilha = (e) => {
+  // --- A MÁGICA ANTI-CLONES ---
+  const importarPlanilha = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const texto = event.target.result;
-      const linhas = texto.split("\n");
-      let totalImportados = 0;
+    try {
+      // 1. Pega os convidados que JÁ ESTÃO no banco
+      const convidadosRef = ref(database, `convidados_por_casal/${idCasal}`);
+      const snapshot = await get(convidadosRef);
+      const convidadosAtuais = [];
+      if (snapshot.exists()) {
+        const dados = snapshot.val();
+        Object.keys(dados).forEach((key) => {
+          convidadosAtuais.push({ id: key, ...dados[key] });
+        });
+      }
 
-      linhas.forEach((linha, index) => {
-        if (index === 0) return; // Pula o cabeçalho
-        if (!linha.trim()) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const texto = event.target.result;
+        const linhas = texto.split("\n");
+        let totalNovos = 0;
+        let totalAtualizados = 0;
 
-        // Corta a linha e pega Nome, Telefone e Mesa
-        const colunas = linha.split(/;|,/);
-        const nomeConvidado = colunas[0] ? colunas[0].trim() : "";
-        const telefoneConvidado = colunas[1] ? colunas[1].trim() : "";
-        const mesaConvidado = colunas[2] ? colunas[2].trim() : ""; // Pegando a mesa da coluna C!
+        linhas.forEach((linha, index) => {
+          if (index === 0) return; // Pula o cabeçalho
+          if (!linha.trim()) return;
 
-        if (nomeConvidado) {
-          const convidadosRef = ref(
-            database,
-            `convidados_por_casal/${idCasal}`
-          );
-          push(convidadosRef, {
-            nome: nomeConvidado,
-            telefone: telefoneConvidado,
-            mesa: mesaConvidado, // Salva a mesa direto do Excel
-            status: "pendente",
-            checkin: false,
-          });
-          totalImportados++;
-        }
-      });
+          const colunas = linha.split(/;|,/);
+          const nomeConvidado = colunas[0] ? colunas[0].trim() : "";
+          const telefoneConvidado = colunas[1] ? colunas[1].trim() : "";
+          const mesaConvidado = colunas[2] ? colunas[2].trim() : "";
 
-      alert(
-        `🎉 Sucesso! ${totalImportados} convidados importados (com as mesas)!`
-      );
-      e.target.value = "";
-    };
+          if (nomeConvidado) {
+            // Procura se o nome já existe (ignorando letras maiúsculas/minúsculas)
+            const nomeNormalizado = nomeConvidado.toLowerCase();
+            const convidadoExistente = convidadosAtuais.find(
+              (c) => c.nome.toLowerCase() === nomeNormalizado
+            );
 
-    reader.readAsText(file, "UTF-8");
+            if (convidadoExistente) {
+              // SE JÁ EXISTE: Apenas atualiza a mesa e o telefone, não duplica!
+              const refParaAtualizar = ref(
+                database,
+                `convidados_por_casal/${idCasal}/${convidadoExistente.id}`
+              );
+              update(refParaAtualizar, {
+                telefone: telefoneConvidado || convidadoExistente.telefone,
+                mesa: mesaConvidado || convidadoExistente.mesa,
+              });
+              totalAtualizados++;
+            } else {
+              // SE NÃO EXISTE: Cria um novo na lista
+              push(convidadosRef, {
+                nome: nomeConvidado,
+                telefone: telefoneConvidado,
+                mesa: mesaConvidado,
+                status: "pendente",
+                checkin: false,
+              });
+              totalNovos++;
+            }
+          }
+        });
+
+        alert(
+          `🎉 Lista processada! \n${totalNovos} novos convidados adicionados. \n${totalAtualizados} convidados atualizados.`
+        );
+        e.target.value = "";
+      };
+
+      reader.readAsText(file, "UTF-8");
+    } catch (error) {
+      alert("Erro ao ler a planilha: " + error.message);
+    }
   };
 
   return (
@@ -378,7 +410,6 @@ function DashboardEvento() {
           </h2>
         </div>
 
-        {/* 1. Bloco de Importar Lista */}
         <div
           style={{
             backgroundColor: "white",
@@ -408,10 +439,9 @@ function DashboardEvento() {
               marginBottom: "15px",
             }}
           >
-            Crie um Excel com as colunas <b>Nome</b>, <b>Telefone</b> e{" "}
-            <b>Mesa</b>, salve como <b>.CSV</b> e envie aqui:
+            Crie um Excel com <b>Nome</b>, <b>Telefone</b> e <b>Mesa</b>, salve
+            como <b>.CSV</b> e envie aqui. (Atualizações não duplicam os nomes!)
           </p>
-
           <input
             type="file"
             accept=".csv"
@@ -427,7 +457,6 @@ function DashboardEvento() {
           />
         </div>
 
-        {/* 2. Bloco do Convite */}
         <div
           style={{
             backgroundColor: "white",
@@ -514,7 +543,6 @@ function DashboardEvento() {
           </div>
         </div>
 
-        {/* 3. Bloco da Recepção (Com novo título e cor) */}
         <div
           style={{
             backgroundColor: "white",
@@ -546,7 +574,6 @@ function DashboardEvento() {
           >
             Acesse a lista para dar o check-in na porta do evento.
           </p>
-          {/* O botão preto virou verde-água! */}
           <Link
             to={`/portaria/${idCasal}`}
             style={{
@@ -707,7 +734,6 @@ function TelaPortaria() {
   const navigate = useNavigate();
   const [convidados, setConvidados] = useState([]);
   const [busca, setBusca] = useState("");
-  // NOVA MÁGICA: Controlo das abinhas
   const [abaAtiva, setAbaAtiva] = useState("confirmado");
 
   useEffect(() => {
@@ -719,7 +745,6 @@ function TelaPortaria() {
           id: key,
           ...dados[key],
         }));
-        // Agora o sistema guarda TODOS os convidados, sem esconder ninguém
         setConvidados(lista);
       } else {
         setConvidados([]);
@@ -727,10 +752,8 @@ function TelaPortaria() {
     });
   }, [idCasal]);
 
-  // Função para dar o Check-in
   const fazerCheckin = (id, jaEntrou) => {
     const convidadoRef = ref(database, `convidados_por_casal/${idCasal}/${id}`);
-    // Se a pessoa entrou, automaticamente o status passa a "confirmado"
     update(convidadoRef, { checkin: !jaEntrou, status: "confirmado" });
   };
 
@@ -748,19 +771,27 @@ function TelaPortaria() {
     }
   };
 
-  // 1. Filtra pela aba que a pessoa clicou (e junta os "talvez" com os "pendentes")
+  // --- NOVA FUNÇÃO: DELETAR CONVIDADO ---
+  const deletarConvidado = (id, nome) => {
+    if (window.confirm(`Tem certeza que deseja excluir ${nome} da lista?`)) {
+      const convidadoRef = ref(
+        database,
+        `convidados_por_casal/${idCasal}/${id}`
+      );
+      set(convidadoRef, null); // Apaga do Firebase!
+    }
+  };
+
   const convidadosDaAba = convidados.filter((c) => {
     if (abaAtiva === "pendente")
       return c.status === "pendente" || c.status === "talvez";
     return c.status === abaAtiva;
   });
 
-  // 2. Depois filtra pela barra de pesquisa
   const filtrados = convidadosDaAba.filter((c) =>
     c.nome.toLowerCase().includes(busca.toLowerCase())
   );
 
-  // Contadores Inteligentes
   const totalConfirmados = convidados.filter(
     (c) => c.status === "confirmado"
   ).length;
@@ -770,7 +801,6 @@ function TelaPortaria() {
   ).length;
   const totalNaoVao = convidados.filter((c) => c.status === "nao_vou").length;
 
-  // Estilo elegante para a aba selecionada
   const estiloAba = (nomeAba) => ({
     flex: 1,
     padding: "12px",
@@ -792,7 +822,6 @@ function TelaPortaria() {
         fontFamily: "sans-serif",
       }}
     >
-      {/* Cabeçalho */}
       <div
         style={{
           backgroundColor: "#2cbdbd",
@@ -832,11 +861,10 @@ function TelaPortaria() {
           }}
         >
           <h2 style={{ margin: 0, color: "#333", fontSize: "22px" }}>
-            📋 Portaria VIP
+            📋 Recepção VIP
           </h2>
         </div>
 
-        {/* Contadores */}
         <div
           style={{
             display: "flex",
@@ -898,7 +926,6 @@ function TelaPortaria() {
           </div>
         </div>
 
-        {/* As 3 Abinhas */}
         <div
           style={{
             display: "flex",
@@ -929,7 +956,6 @@ function TelaPortaria() {
           </div>
         </div>
 
-        {/* Barra de Pesquisa */}
         <input
           type="text"
           placeholder="🔍 Buscar pelo nome..."
@@ -947,7 +973,6 @@ function TelaPortaria() {
           }}
         />
 
-        {/* Lista de Convidados da Aba Selecionada */}
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {filtrados.map((c) => (
             <div
@@ -994,7 +1019,19 @@ function TelaPortaria() {
                   Mesa: {c.mesa ? c.mesa : "Não definida"} ✎
                 </span>
 
-                {/* O Bónus: Mostra o telemóvel na aba dos pendentes para ajudar a contactar! */}
+                {/* BOTÃO DE LIXEIRA AQUI */}
+                <span
+                  onClick={() => deletarConvidado(c.id, c.nome)}
+                  style={{
+                    cursor: "pointer",
+                    marginLeft: "10px",
+                    fontSize: "14px",
+                  }}
+                  title="Excluir Convidado"
+                >
+                  🗑️
+                </span>
+
                 {abaAtiva === "pendente" && c.telefone && (
                   <span
                     style={{
@@ -1009,7 +1046,6 @@ function TelaPortaria() {
                 )}
               </div>
 
-              {/* Quadradinho de Check-in */}
               <div
                 onClick={() => fazerCheckin(c.id, c.checkin)}
                 style={{
@@ -1053,7 +1089,7 @@ function TelaPortaria() {
   );
 }
 
-// --- 6. ROTAS PROFISSIONAIS ---
+// --- 6. ROTAS ---
 export default function App() {
   return (
     <BrowserRouter>
