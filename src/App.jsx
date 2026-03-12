@@ -259,16 +259,59 @@ function PainelAdmin() {
 function DashboardEvento() {
   const { idCasal } = useParams();
   const navigate = useNavigate();
-  // Link limpo para os convidados
   const linkConvite = `${window.location.origin}/convite/${idCasal}`;
 
-  // Função simples para o botão de copiar o link
   const copiarLink = () => {
     navigator.clipboard.writeText(linkConvite).then(() => {
-      alert(
-        "Link copiado para o seu celular/computador! Agora é só colar no WhatsApp."
-      );
+      alert("Link copiado! Agora é só colar no WhatsApp.");
     });
+  };
+
+  // --- A MÁGICA DA PLANILHA ACONTECE AQUI ---
+  const importarPlanilha = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const texto = event.target.result;
+      const linhas = texto.split("\n"); // Separa as linhas do arquivo
+      let totalImportados = 0;
+
+      linhas.forEach((linha, index) => {
+        // Pula a linha 1 (onde deve estar escrito "Nome" e "Telefone")
+        if (index === 0) return;
+        if (!linha.trim()) return; // Pula linhas vazias
+
+        // Corta a linha onde tiver vírgula ou ponto e vírgula
+        const colunas = linha.split(/;|,/);
+        const nomeConvidado = colunas[0] ? colunas[0].trim() : "";
+        const telefoneConvidado = colunas[1] ? colunas[1].trim() : "";
+
+        // Se tiver pelo menos o nome, ele salva no banco de dados!
+        if (nomeConvidado) {
+          const convidadosRef = ref(
+            database,
+            `convidados_por_casal/${idCasal}`
+          );
+          push(convidadosRef, {
+            nome: nomeConvidado,
+            telefone: telefoneConvidado,
+            status: "pendente", // Ainda não respondeu o convite
+            checkin: false,
+            mesa: "",
+          });
+          totalImportados++;
+        }
+      });
+
+      alert(
+        `🎉 Sucesso! ${totalImportados} convidados foram importados com sucesso!`
+      );
+      e.target.value = ""; // Limpa o botão depois de usar
+    };
+
+    reader.readAsText(file, "UTF-8"); // Lê arquivos com acentos (ç, ã, é)
   };
 
   return (
@@ -279,7 +322,6 @@ function DashboardEvento() {
         fontFamily: "sans-serif",
       }}
     >
-      {/* Cabeçalho Verde Água (Exatamente igual à tela inicial) */}
       <div
         style={{
           backgroundColor: "#2cbdbd",
@@ -318,7 +360,6 @@ function DashboardEvento() {
           gap: "20px",
         }}
       >
-        {/* Título Delicado fora do cabeçalho */}
         <div
           style={{
             textAlign: "center",
@@ -338,7 +379,56 @@ function DashboardEvento() {
           </h2>
         </div>
 
-        {/* Bloco do Convite (Claro e Delicado) */}
+        {/* 1. Bloco de Importar Lista (NOVO!) */}
+        <div
+          style={{
+            backgroundColor: "white",
+            padding: "25px",
+            borderRadius: "15px",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "15px",
+            }}
+          >
+            <span style={{ fontSize: "22px" }}>📊</span>
+            <h3 style={{ margin: 0, color: "#333", fontSize: "18px" }}>
+              Importar Convidados
+            </h3>
+          </div>
+          <p
+            style={{
+              fontSize: "14px",
+              color: "#666",
+              marginTop: 0,
+              marginBottom: "15px",
+            }}
+          >
+            Crie um Excel com as colunas <b>Nome</b> e <b>Telefone</b>, salve
+            como <b>.CSV</b> e envie aqui:
+          </p>
+
+          <input
+            type="file"
+            accept=".csv"
+            onChange={importarPlanilha}
+            style={{
+              width: "100%",
+              padding: "10px",
+              border: "1px dashed #2cbdbd",
+              borderRadius: "8px",
+              backgroundColor: "#f0fdfc",
+              cursor: "pointer",
+            }}
+          />
+        </div>
+
+        {/* 2. Bloco do Convite */}
         <div
           style={{
             backgroundColor: "white",
@@ -370,7 +460,6 @@ function DashboardEvento() {
           >
             Envie o link abaixo para os convidados confirmarem presença:
           </p>
-
           <input
             type="text"
             readOnly
@@ -387,7 +476,6 @@ function DashboardEvento() {
               boxSizing: "border-box",
             }}
           />
-
           <div style={{ display: "flex", gap: "10px" }}>
             <button
               onClick={copiarLink}
@@ -427,7 +515,7 @@ function DashboardEvento() {
           </div>
         </div>
 
-        {/* Bloco da Portaria VIP (Claro e Delicado) */}
+        {/* 3. Bloco da Portaria */}
         <div
           style={{
             backgroundColor: "white",
