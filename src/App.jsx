@@ -771,15 +771,40 @@ function TelaPortaria() {
     }
   };
 
-  // --- NOVA FUNÇÃO: DELETAR CONVIDADO ---
   const deletarConvidado = (id, nome) => {
     if (window.confirm(`Tem certeza que deseja excluir ${nome} da lista?`)) {
       const convidadoRef = ref(
         database,
         `convidados_por_casal/${idCasal}/${id}`
       );
-      set(convidadoRef, null); // Apaga do Firebase!
+      set(convidadoRef, null);
     }
+  };
+
+  // --- 🪄 A MÁGICA DO WHATSAPP AQUI ---
+  const enviarWhatsApp = (telefone, nomeConvidado) => {
+    // 1. Limpa tudo que não for número
+    let numeroLimpo = telefone.replace(/\D/g, "");
+
+    // 2. Se a pessoa colocou só o DDD e o número (10 ou 11 dígitos), coloca o 55 do Brasil
+    if (numeroLimpo.length === 10 || numeroLimpo.length === 11) {
+      numeroLimpo = "55" + numeroLimpo;
+    }
+
+    // 3. Formata o nome do Casal para a mensagem ficar bonita
+    const nomeCasalFormatado = idCasal
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+    const linkConvite = `${window.location.origin}/#/convite/${idCasal}`;
+
+    // 4. A mensagem Pronta!
+    const mensagem = `Olá, ${nomeConvidado}! Tudo bem? Aqui é da assessoria do casamento de ${nomeCasalFormatado}. \n\nSegue o seu link exclusivo para confirmar a sua presença e ver as informações do nosso grande dia: \n🔗 ${linkConvite}`;
+
+    // 5. Cria o link oficial do WhatsApp e abre em uma nova aba
+    const url = `https://wa.me/${numeroLimpo}?text=${encodeURIComponent(
+      mensagem
+    )}`;
+    window.open(url, "_blank");
   };
 
   const convidadosDaAba = convidados.filter((c) => {
@@ -1019,7 +1044,6 @@ function TelaPortaria() {
                   Mesa: {c.mesa ? c.mesa : "Não definida"} ✎
                 </span>
 
-                {/* BOTÃO DE LIXEIRA AQUI */}
                 <span
                   onClick={() => deletarConvidado(c.id, c.nome)}
                   style={{
@@ -1032,17 +1056,39 @@ function TelaPortaria() {
                   🗑️
                 </span>
 
+                {/* BOTÃO DO WHATSAPP SÓ APARECE SE TIVER TELEFONE! */}
                 {abaAtiva === "pendente" && c.telefone && (
-                  <span
+                  <div
                     style={{
-                      display: "block",
-                      fontSize: "12px",
-                      color: "#888",
-                      marginTop: "6px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      marginTop: "8px",
                     }}
                   >
-                    📞 {c.telefone}
-                  </span>
+                    <span style={{ fontSize: "13px", color: "#888" }}>
+                      📞 {c.telefone}
+                    </span>
+                    <button
+                      onClick={() => enviarWhatsApp(c.telefone, c.nome)}
+                      style={{
+                        backgroundColor: "#25D366",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "6px",
+                        padding: "6px 12px",
+                        fontSize: "12px",
+                        fontWeight: "bold",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        boxShadow: "0 2px 4px rgba(37, 211, 102, 0.3)",
+                      }}
+                    >
+                      <span>💬</span> Enviar Link
+                    </button>
+                  </div>
                 )}
               </div>
 
