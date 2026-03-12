@@ -44,7 +44,7 @@ const pegarIniciais = (nome) => {
   }
 };
 
-// --- 2. PAINEL ADMIN ---
+// --- 1. PAINEL ADMIN ---
 function PainelAdmin() {
   const [nomeCasal, setNomeCasal] = useState("");
   const [dataEvento, setDataEvento] = useState("");
@@ -69,7 +69,7 @@ function PainelAdmin() {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)+/g, "");
-    if (!idUrl) return alert("Digite um nome válido!");
+    if (!idUrl) return alert("Digite um nome!");
     set(ref(database, `casamentos_cadastrados/${idUrl}`), {
       nomeExibicao: nomeCasal,
       idUrl,
@@ -80,7 +80,7 @@ function PainelAdmin() {
         setNomeCasal("");
         setDataEvento("");
       })
-      .catch((error) => alert("Erro: " + error.message));
+      .catch((err) => alert("Erro: " + err.message));
   };
 
   const deletarEvento = (e, idUrl, nome) => {
@@ -96,10 +96,10 @@ function PainelAdmin() {
   };
 
   const hoje = new Date().toISOString().split("T")[0];
-  const eventosFiltrados = casamentos.filter((casal) =>
+  const eventosFiltrados = casamentos.filter((c) =>
     abaAtiva === "proximos"
-      ? !casal.data || casal.data >= hoje
-      : casal.data && casal.data < hoje
+      ? !c.data || c.data >= hoje
+      : c.data && c.data < hoje
   );
   eventosFiltrados.sort((a, b) =>
     abaAtiva === "proximos"
@@ -198,7 +198,6 @@ function PainelAdmin() {
             </button>
           </form>
         </div>
-
         <div
           style={{
             display: "flex",
@@ -221,7 +220,6 @@ function PainelAdmin() {
             Eventos Concluídos
           </div>
         </div>
-
         <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
           {eventosFiltrados.map((casal) => (
             <div
@@ -299,7 +297,7 @@ function PainelAdmin() {
   );
 }
 
-// --- 3. DASHBOARD DO EVENTO ---
+// --- 2. DASHBOARD DO EVENTO ---
 function DashboardEvento() {
   const { idCasal } = useParams();
   const navigate = useNavigate();
@@ -312,9 +310,9 @@ function DashboardEvento() {
       const convidadosRef = ref(database, `convidados_por_casal/${idCasal}`);
       const snapshot = await get(convidadosRef);
       const convidadosAtuais = snapshot.exists()
-        ? Object.keys(snapshot.val()).map((key) => ({
-            id: key,
-            ...snapshot.val()[key],
+        ? Object.keys(snapshot.val()).map((k) => ({
+            id: k,
+            ...snapshot.val()[k],
           }))
         : [];
 
@@ -330,6 +328,8 @@ function DashboardEvento() {
           const nome = colunas[0] ? colunas[0].trim() : "";
           const telefone = colunas[1] ? colunas[1].trim() : "";
           const mesa = colunas[2] ? colunas[2].trim() : "";
+          const familia =
+            colunas[3] && colunas[3].trim() !== "" ? colunas[3].trim() : nome; // 🪄 MÁGICA DA FAMÍLIA AQUI
 
           if (nome) {
             const convidadoExistente = convidadosAtuais.find(
@@ -344,6 +344,7 @@ function DashboardEvento() {
                 {
                   telefone: telefone || convidadoExistente.telefone,
                   mesa: mesa || convidadoExistente.mesa,
+                  familia,
                 }
               );
               atualizados++;
@@ -352,6 +353,7 @@ function DashboardEvento() {
                 nome,
                 telefone,
                 mesa,
+                familia,
                 status: "pendente",
                 checkin: false,
               });
@@ -359,7 +361,9 @@ function DashboardEvento() {
             }
           }
         });
-        alert(`🎉 ${novos} novos adicionados.\n${atualizados} atualizados.`);
+        alert(
+          `🎉 Planilha Lida!\n${novos} novos adicionados.\n${atualizados} atualizados.`
+        );
         e.target.value = "";
       };
       reader.readAsText(file, "UTF-8");
@@ -419,7 +423,6 @@ function DashboardEvento() {
         >
           Gestão: {idCasal.replace(/-/g, " ")}
         </h2>
-
         <div
           style={{
             backgroundColor: "white",
@@ -430,6 +433,9 @@ function DashboardEvento() {
           <h3 style={{ margin: "0 0 15px", color: "#333" }}>
             📊 Importar Convidados
           </h3>
+          <p style={{ fontSize: "14px", color: "#666", marginBottom: "15px" }}>
+            Excel colunas: <b>Nome, Telefone, Mesa, Família</b> (.CSV)
+          </p>
           <input
             type="file"
             accept=".csv"
@@ -444,7 +450,6 @@ function DashboardEvento() {
             }}
           />
         </div>
-
         <div
           style={{
             backgroundColor: "white",
@@ -453,7 +458,7 @@ function DashboardEvento() {
           }}
         >
           <h3 style={{ margin: "0 0 15px", color: "#333" }}>
-            💌 Link do Convite
+            💌 Link Geral (Sem Telefone)
           </h3>
           <input
             type="text"
@@ -468,44 +473,26 @@ function DashboardEvento() {
               marginBottom: "15px",
             }}
           />
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button
-              onClick={() =>
-                navigator.clipboard
-                  .writeText(linkConvite)
-                  .then(() => alert("Copiado!"))
-              }
-              style={{
-                flex: 1,
-                padding: "12px",
-                backgroundColor: "#2cbdbd",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer",
-              }}
-            >
-              Copiar Link
-            </button>
-            <Link
-              to={`/convite/${idCasal}`}
-              target="_blank"
-              style={{
-                flex: 1,
-                padding: "12px",
-                backgroundColor: "#f0f2f5",
-                color: "#333",
-                textDecoration: "none",
-                borderRadius: "8px",
-                textAlign: "center",
-                fontWeight: "bold",
-              }}
-            >
-              Testar
-            </Link>
-          </div>
+          <button
+            onClick={() =>
+              navigator.clipboard
+                .writeText(linkConvite)
+                .then(() => alert("Copiado!"))
+            }
+            style={{
+              width: "100%",
+              padding: "12px",
+              backgroundColor: "#2cbdbd",
+              color: "white",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
+          >
+            Copiar Link
+          </button>
         </div>
-
         <div
           style={{
             backgroundColor: "white",
@@ -513,7 +500,7 @@ function DashboardEvento() {
             borderRadius: "15px",
           }}
         >
-          <h3 style={{ margin: "0 0 15px", color: "#333" }}>📋 Recepção</h3>
+          <h3 style={{ margin: "0 0 15px", color: "#333" }}>📋 Recepção VIP</h3>
           <Link
             to={`/portaria/${idCasal}`}
             style={{
@@ -527,7 +514,7 @@ function DashboardEvento() {
               fontWeight: "bold",
             }}
           >
-            Acessar Check-in VIP
+            Acessar Check-in
           </Link>
         </div>
       </div>
@@ -535,33 +522,118 @@ function DashboardEvento() {
   );
 }
 
-// --- 4. TELA DOS CONVIDADOS (VIP com QR Code) ---
+// --- 3. TELA DOS CONVIDADOS (AGORA POR FAMÍLIA!) ---
 function TelaConvidados() {
-  const { idCasal } = useParams();
-  const [nome, setNome] = useState("");
-  const [status, setStatus] = useState("confirmado");
-  const [loading, setLoading] = useState(false);
+  const { idCasal, telefoneUrl } = useParams(); // Pega o telefone escondido no link
+  const [membrosFamilia, setMembrosFamilia] = useState([]);
+  const [nomeFamilia, setNomeFamilia] = useState("");
+  const [loading, setLoading] = useState(true);
   const [ticketFinal, setTicketFinal] = useState(null);
+  const [erroBusca, setErroBusca] = useState(false);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setLoading(true);
-    const novoRef = push(ref(database, `convidados_por_casal/${idCasal}`));
-    set(novoRef, {
-      nome,
-      status,
-      data_confirmacao: new Date().toISOString(),
-      checkin: false,
-    }).then(() => {
-      setLoading(false);
-      if (status === "confirmado") setTicketFinal({ nome, id: novoRef.key });
-      else {
-        alert("Sua resposta foi registrada!");
-        setNome("");
+  useEffect(() => {
+    // Quando a tela abre, ela vasculha o banco de dados procurando o telefone do link
+    const buscarFamilia = async () => {
+      if (!telefoneUrl) {
+        setLoading(false);
+        setErroBusca(true);
+        return;
       }
-    });
+
+      const convidadosRef = ref(database, `convidados_por_casal/${idCasal}`);
+      const snapshot = await get(convidadosRef);
+      if (snapshot.exists()) {
+        const todos = Object.keys(snapshot.val()).map((k) => ({
+          id: k,
+          ...snapshot.val()[k],
+        }));
+
+        // Acha a pessoa dona do celular
+        const donoDoCelular = todos.find((c) => c.telefone === telefoneUrl);
+
+        if (donoDoCelular && donoDoCelular.familia) {
+          // Pega TODO MUNDO que tem o mesmo nome de família
+          const familiaInteira = todos.filter(
+            (c) => c.familia === donoDoCelular.familia
+          );
+          setMembrosFamilia(familiaInteira);
+          setNomeFamilia(donoDoCelular.familia);
+          setErroBusca(false);
+        } else {
+          setErroBusca(true);
+        }
+      } else {
+        setErroBusca(true);
+      }
+      setLoading(false);
+    };
+    buscarFamilia();
+  }, [idCasal, telefoneUrl]);
+
+  // Função para mudar o status de uma pessoa específica na lista
+  const atualizarStatusMembro = (index, novoStatus) => {
+    const novaLista = [...membrosFamilia];
+    novaLista[index].status = novoStatus;
+    setMembrosFamilia(novaLista);
   };
 
+  const salvarPresencas = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    // Salva a decisão de cada membro da família no Firebase
+    for (let membro of membrosFamilia) {
+      const membroRef = ref(
+        database,
+        `convidados_por_casal/${idCasal}/${membro.id}`
+      );
+      await update(membroRef, {
+        status: membro.status,
+        data_confirmacao: new Date().toISOString(),
+      });
+    }
+
+    setLoading(false);
+    // Cria um ID único para a família gerar o QR Code
+    const idQrCodeFam = `FAM-${idCasal}-${nomeFamilia.replace(/\s+/g, "")}`;
+    setTicketFinal({ nome: nomeFamilia, id: idQrCodeFam });
+  };
+
+  // TELA DE ERRO (Se abrir o link sem telefone)
+  if (!loading && erroBusca && !ticketFinal) {
+    return (
+      <div
+        style={{
+          backgroundColor: "#f9f6f0",
+          minHeight: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: "20px",
+          fontFamily: "serif",
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: "white",
+            padding: "40px 30px",
+            borderRadius: "15px",
+            textAlign: "center",
+            border: "1px solid #eee",
+            maxWidth: "400px",
+          }}
+        >
+          <h2>Ops! Convite não encontrado.</h2>
+          <p style={{ color: "#666" }}>
+            Por favor, solicite o seu link pessoal de confirmação para a
+            assessoria do evento.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // TELA DO INGRESSO QR CODE
   if (ticketFinal) {
     return (
       <div
@@ -572,22 +644,27 @@ function TelaConvidados() {
           flexDirection: "column",
           alignItems: "center",
           padding: "40px 20px",
+          fontFamily: "serif",
         }}
       >
         <div
           style={{
             backgroundColor: "white",
-            padding: "40px",
+            padding: "40px 30px",
             borderRadius: "15px",
+            width: "100%",
+            maxWidth: "400px",
             textAlign: "center",
             border: "1px solid #eee",
           }}
         >
-          <h2 style={{ color: "#d4af37", marginBottom: "10px" }}>
-            Presença Confirmada!
+          <h2
+            style={{ color: "#d4af37", marginBottom: "10px", fontSize: "26px" }}
+          >
+            Presença Registrada!
           </h2>
-          <p style={{ color: "#666", marginBottom: "30px" }}>
-            {ticketFinal.nome}, estamos muito felizes!
+          <p style={{ color: "#666", fontSize: "16px", marginBottom: "30px" }}>
+            {ticketFinal.nome}, agradecemos a confirmação.
           </p>
           <div
             style={{
@@ -598,23 +675,32 @@ function TelaConvidados() {
               marginBottom: "20px",
             }}
           >
-            <p style={{ margin: "0 0 15px", fontWeight: "bold" }}>
-              SEU PASSE VIP
+            <p
+              style={{
+                margin: "0 0 15px",
+                fontWeight: "bold",
+                color: "#333",
+                letterSpacing: "1px",
+              }}
+            >
+              PASSE VIP DA FAMÍLIA
             </p>
             <img
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${ticketFinal.id}`}
-              alt="QR Code"
+              alt="QR Code VIP"
               style={{ width: "180px" }}
             />
           </div>
           <p style={{ color: "#888", fontSize: "14px" }}>
-            Tire um print (foto) e apresente na portaria.
+            Tire um print (foto) e apresente na portaria para entrada rápida de
+            todo o grupo.
           </p>
         </div>
       </div>
     );
   }
 
+  // TELA DO FORMULÁRIO DA FAMÍLIA
   return (
     <div
       style={{
@@ -624,15 +710,16 @@ function TelaConvidados() {
         flexDirection: "column",
         alignItems: "center",
         padding: "40px 20px",
+        fontFamily: "serif",
       }}
     >
       <div
         style={{
           backgroundColor: "white",
-          padding: "40px 30px",
+          padding: "40px 20px",
           borderRadius: "15px",
           width: "100%",
-          maxWidth: "430px",
+          maxWidth: "450px",
           border: "1px solid #eee",
         }}
       >
@@ -641,64 +728,113 @@ function TelaConvidados() {
           <h1
             style={{
               margin: "10px 0 5px",
+              fontSize: "24px",
               color: "#333",
               textTransform: "capitalize",
             }}
           >
             {idCasal.replace(/-/g, " ")}
           </h1>
+          {loading ? (
+            <p>Carregando seu convite...</p>
+          ) : (
+            <p
+              style={{
+                color: "#d4af37",
+                fontSize: "18px",
+                fontWeight: "bold",
+                marginTop: "15px",
+              }}
+            >
+              Bem-vindos, {nomeFamilia}!
+            </p>
+          )}
+          <p style={{ color: "#888", fontSize: "14px", fontStyle: "italic" }}>
+            Confirme a presença de cada convidado abaixo:
+          </p>
         </div>
-        <form
-          onSubmit={handleSubmit}
-          style={{ display: "flex", flexDirection: "column", gap: "20px" }}
-        >
-          <input
-            type="text"
-            placeholder="Seu Nome Completo"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            required
-            style={{
-              padding: "15px",
-              borderRadius: "8px",
-              border: "1px solid #ddd",
-            }}
-          />
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            style={{
-              padding: "15px",
-              borderRadius: "8px",
-              border: "1px solid #ddd",
-            }}
+
+        {!loading && (
+          <form
+            onSubmit={salvarPresencas}
+            style={{ display: "flex", flexDirection: "column", gap: "15px" }}
           >
-            <option value="confirmado">Sim, vou com certeza!</option>
-            <option value="talvez">Ainda não tenho certeza</option>
-            <option value="nao_vou">Infelizmente não poderei ir</option>
-          </select>
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              padding: "18px",
-              backgroundColor: "#d4af37",
-              color: "white",
-              border: "none",
-              borderRadius: "8px",
-              fontWeight: "bold",
-              cursor: "pointer",
-            }}
-          >
-            {loading ? "Enviando..." : "Confirmar Presença"}
-          </button>
-        </form>
+            {membrosFamilia.map((membro, index) => (
+              <div
+                key={membro.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "15px",
+                  backgroundColor: "#fcfcfc",
+                  border: "1px solid #ddd",
+                  borderRadius: "8px",
+                }}
+              >
+                <span
+                  style={{
+                    fontWeight: "bold",
+                    color: "#555",
+                    fontSize: "15px",
+                    fontFamily: "sans-serif",
+                  }}
+                >
+                  {membro.nome}
+                </span>
+                <select
+                  value={membro.status}
+                  onChange={(e) => atualizarStatusMembro(index, e.target.value)}
+                  style={{
+                    padding: "8px",
+                    borderRadius: "5px",
+                    border: "1px solid #ccc",
+                    outline: "none",
+                    backgroundColor:
+                      membro.status === "confirmado"
+                        ? "#e6f4ea"
+                        : membro.status === "nao_vou"
+                        ? "#fce8e6"
+                        : "white",
+                    fontWeight: "bold",
+                    color: "#333",
+                    fontFamily: "sans-serif",
+                  }}
+                >
+                  <option value="pendente">Responder...</option>
+                  <option value="confirmado">Eu Vou!</option>
+                  <option value="nao_vou">Não Vou</option>
+                </select>
+              </div>
+            ))}
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                marginTop: "20px",
+                padding: "18px",
+                fontSize: "16px",
+                backgroundColor: "#d4af37",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontWeight: "bold",
+                textTransform: "uppercase",
+                boxShadow: "0 4px 10px rgba(212, 175, 55, 0.3)",
+                fontFamily: "sans-serif",
+              }}
+            >
+              Salvar Confirmações
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
 }
 
-// --- 5. TELA DA PORTARIA ---
+// --- 4. TELA DA PORTARIA ---
 function TelaPortaria() {
   const { idCasal } = useParams();
   const navigate = useNavigate();
@@ -710,9 +846,7 @@ function TelaPortaria() {
     onValue(ref(database, `convidados_por_casal/${idCasal}`), (snapshot) => {
       const dados = snapshot.val();
       setConvidados(
-        dados
-          ? Object.keys(dados).map((key) => ({ id: key, ...dados[key] }))
-          : []
+        dados ? Object.keys(dados).map((k) => ({ id: k, ...dados[k] })) : []
       );
     });
   }, [idCasal]);
@@ -721,7 +855,10 @@ function TelaPortaria() {
     let numeroLimpo = telefone.replace(/\D/g, "");
     if (numeroLimpo.length === 10 || numeroLimpo.length === 11)
       numeroLimpo = "55" + numeroLimpo;
-    const msg = `Olá, ${nomeConvidado}! Aqui é da assessoria. Segue o link para confirmar sua presença:\n🔗 ${window.location.origin}/convite/${idCasal}`;
+
+    // 🪄 OLHA A MÁGICA AQUI: O Link agora manda o telefone junto, escondido!
+    const linkConvite = `${window.location.origin}/convite/${idCasal}/${numeroLimpo}`;
+    const msg = `Olá, ${nomeConvidado}! Aqui é da assessoria. Segue o link para confirmar a presença da sua família:\n🔗 ${linkConvite}`;
     window.open(
       `https://wa.me/${numeroLimpo}?text=${encodeURIComponent(msg)}`,
       "_blank"
@@ -733,8 +870,10 @@ function TelaPortaria() {
       ? c.status === "pendente" || c.status === "talvez"
       : c.status === abaAtiva
   );
-  const filtrados = convidadosDaAba.filter((c) =>
-    c.nome.toLowerCase().includes(busca.toLowerCase())
+  const filtrados = convidadosDaAba.filter(
+    (c) =>
+      c.nome.toLowerCase().includes(busca.toLowerCase()) ||
+      (c.familia && c.familia.toLowerCase().includes(busca.toLowerCase()))
   );
 
   const estiloAba = (nomeAba) => ({
@@ -759,10 +898,10 @@ function TelaPortaria() {
       <div
         style={{
           backgroundColor: "#2cbdbd",
-          padding: "40px 20px",
-          borderBottomLeftRadius: "30px",
-          borderBottomRightRadius: "30px",
+          padding: "20px",
           color: "white",
+          display: "flex",
+          alignItems: "center",
         }}
       >
         <button
@@ -778,9 +917,7 @@ function TelaPortaria() {
           ⬅ Voltar
         </button>
       </div>
-      <div
-        style={{ padding: "20px", maxWidth: "600px", margin: "-20px auto 0" }}
-      >
+      <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
         <h2 style={{ textAlign: "center", marginBottom: "20px" }}>
           📋 Recepção VIP
         </h2>
@@ -816,7 +953,7 @@ function TelaPortaria() {
 
         <input
           type="text"
-          placeholder="🔍 Buscar pelo nome..."
+          placeholder="🔍 Buscar por nome ou família..."
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           style={{
@@ -837,7 +974,7 @@ function TelaPortaria() {
                 display: "flex",
                 alignItems: "center",
                 backgroundColor: "white",
-                padding: "15px 20px",
+                padding: "15px",
                 borderRadius: "12px",
                 borderLeft: c.checkin
                   ? "5px solid #2cbdbd"
@@ -855,6 +992,18 @@ function TelaPortaria() {
                 >
                   {c.nome}
                 </span>
+                {c.familia && (
+                  <span
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      color: "#888",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    👨‍👩‍👧 {c.familia}
+                  </span>
+                )}
                 <span
                   onClick={() => {
                     const mesa = window.prompt("Mesa:", c.mesa || "");
@@ -939,7 +1088,7 @@ function TelaPortaria() {
   );
 }
 
-// --- 6. ROTAS ---
+// --- 5. ROTAS ---
 export default function App() {
   return (
     <BrowserRouter>
@@ -947,6 +1096,11 @@ export default function App() {
         <Route path="/" element={<PainelAdmin />} />
         <Route path="/evento/:idCasal" element={<DashboardEvento />} />
         <Route path="/convite/:idCasal" element={<TelaConvidados />} />
+        {/* A Rota Nova que aceita o telefone escondido no link! */}
+        <Route
+          path="/convite/:idCasal/:telefoneUrl"
+          element={<TelaConvidados />}
+        />
         <Route path="/portaria/:idCasal" element={<TelaPortaria />} />
         <Route path="*" element={<PainelAdmin />} />
       </Routes>
