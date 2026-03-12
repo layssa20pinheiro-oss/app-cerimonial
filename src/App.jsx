@@ -708,6 +708,8 @@ function TelaPortaria() {
   const navigate = useNavigate();
   const [convidados, setConvidados] = useState([]);
   const [busca, setBusca] = useState("");
+  // NOVA MÁGICA: Controlo das abinhas
+  const [abaAtiva, setAbaAtiva] = useState("confirmado");
 
   useEffect(() => {
     const convidadosRef = ref(database, `convidados_por_casal/${idCasal}`);
@@ -718,8 +720,8 @@ function TelaPortaria() {
           id: key,
           ...dados[key],
         }));
-        // Filtra para mostrar apenas quem confirmou que vai
-        setConvidados(lista.filter((c) => c.status === "confirmado"));
+        // Agora o sistema guarda TODOS os convidados, sem esconder ninguém
+        setConvidados(lista);
       } else {
         setConvidados([]);
       }
@@ -729,16 +731,15 @@ function TelaPortaria() {
   // Função para dar o Check-in
   const fazerCheckin = (id, jaEntrou) => {
     const convidadoRef = ref(database, `convidados_por_casal/${idCasal}/${id}`);
-    update(convidadoRef, { checkin: !jaEntrou });
+    // Se a pessoa entrou, automaticamente o status passa a "confirmado"
+    update(convidadoRef, { checkin: !jaEntrou, status: "confirmado" });
   };
 
-  // Função Mágica para definir a mesa na hora!
   const definirMesa = (id, mesaAtual) => {
     const novaMesa = window.prompt(
       "Digite o número ou nome da mesa para este convidado:",
       mesaAtual || ""
     );
-    // Se a pessoa não cancelar a caixinha, ele salva a mesa no Firebase
     if (novaMesa !== null) {
       const convidadoRef = ref(
         database,
@@ -748,11 +749,41 @@ function TelaPortaria() {
     }
   };
 
-  const filtrados = convidados.filter((c) =>
+  // 1. Filtra pela aba que a pessoa clicou (e junta os "talvez" com os "pendentes")
+  const convidadosDaAba = convidados.filter((c) => {
+    if (abaAtiva === "pendente")
+      return c.status === "pendente" || c.status === "talvez";
+    return c.status === abaAtiva;
+  });
+
+  // 2. Depois filtra pela barra de pesquisa
+  const filtrados = convidadosDaAba.filter((c) =>
     c.nome.toLowerCase().includes(busca.toLowerCase())
   );
-  const totalConfirmados = convidados.length;
+
+  // Contadores Inteligentes
+  const totalConfirmados = convidados.filter(
+    (c) => c.status === "confirmado"
+  ).length;
   const totalPresentes = convidados.filter((c) => c.checkin).length;
+  const totalPendentes = convidados.filter(
+    (c) => c.status === "pendente" || c.status === "talvez"
+  ).length;
+  const totalNaoVao = convidados.filter((c) => c.status === "nao_vou").length;
+
+  // Estilo elegante para a aba selecionada
+  const estiloAba = (nomeAba) => ({
+    flex: 1,
+    padding: "12px",
+    textAlign: "center",
+    backgroundColor: abaAtiva === nomeAba ? "#2cbdbd" : "white",
+    color: abaAtiva === nomeAba ? "white" : "#666",
+    fontWeight: "bold",
+    cursor: "pointer",
+    borderBottom: abaAtiva === nomeAba ? "3px solid #1a8b8b" : "1px solid #eee",
+    transition: "all 0.3s",
+    fontSize: "13px",
+  });
 
   return (
     <div
@@ -762,7 +793,7 @@ function TelaPortaria() {
         fontFamily: "sans-serif",
       }}
     >
-      {/* Cabeçalho Verde Água Padrão */}
+      {/* Cabeçalho */}
       <div
         style={{
           backgroundColor: "#2cbdbd",
@@ -794,7 +825,6 @@ function TelaPortaria() {
       <div
         style={{ padding: "20px", maxWidth: "600px", margin: "-20px auto 0" }}
       >
-        {/* Título da Página */}
         <div
           style={{
             textAlign: "center",
@@ -807,7 +837,7 @@ function TelaPortaria() {
           </h2>
         </div>
 
-        {/* Painel de Contagem Clean */}
+        {/* Contadores */}
         <div
           style={{
             display: "flex",
@@ -869,7 +899,38 @@ function TelaPortaria() {
           </div>
         </div>
 
-        {/* Barra de Busca */}
+        {/* As 3 Abinhas */}
+        <div
+          style={{
+            display: "flex",
+            backgroundColor: "white",
+            borderRadius: "10px",
+            overflow: "hidden",
+            marginBottom: "20px",
+            boxShadow: "0 2px 5px rgba(0,0,0,0.05)",
+          }}
+        >
+          <div
+            onClick={() => setAbaAtiva("confirmado")}
+            style={estiloAba("confirmado")}
+          >
+            Confirmados ({totalConfirmados})
+          </div>
+          <div
+            onClick={() => setAbaAtiva("pendente")}
+            style={estiloAba("pendente")}
+          >
+            Pendentes ({totalPendentes})
+          </div>
+          <div
+            onClick={() => setAbaAtiva("nao_vou")}
+            style={estiloAba("nao_vou")}
+          >
+            Não Vão ({totalNaoVao})
+          </div>
+        </div>
+
+        {/* Barra de Pesquisa */}
         <input
           type="text"
           placeholder="🔍 Buscar pelo nome..."
@@ -887,7 +948,7 @@ function TelaPortaria() {
           }}
         />
 
-        {/* Lista de Convidados */}
+        {/* Lista de Convidados da Aba Selecionada */}
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {filtrados.map((c) => (
             <div
@@ -905,7 +966,6 @@ function TelaPortaria() {
                 transition: "all 0.2s",
               }}
             >
-              {/* Textos: Nome e Mesa */}
               <div style={{ flex: 1 }}>
                 <span
                   style={{
@@ -919,7 +979,6 @@ function TelaPortaria() {
                   {c.nome}
                 </span>
 
-                {/* A mágica da Mesa: Clicou, editou! */}
                 <span
                   onClick={() => definirMesa(c.id, c.mesa)}
                   style={{
@@ -935,9 +994,23 @@ function TelaPortaria() {
                 >
                   Mesa: {c.mesa ? c.mesa : "Não definida"} ✎
                 </span>
+
+                {/* O Bónus: Mostra o telemóvel na aba dos pendentes para ajudar a contactar! */}
+                {abaAtiva === "pendente" && c.telefone && (
+                  <span
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      color: "#888",
+                      marginTop: "6px",
+                    }}
+                  >
+                    📞 {c.telefone}
+                  </span>
+                )}
               </div>
 
-              {/* Novo Quadradinho de Check-in (Muito mais chique) */}
+              {/* Quadradinho de Check-in */}
               <div
                 onClick={() => fazerCheckin(c.id, c.checkin)}
                 style={{
@@ -972,7 +1045,7 @@ function TelaPortaria() {
             <p
               style={{ textAlign: "center", color: "#999", marginTop: "20px" }}
             >
-              Nenhum convidado encontrado.
+              Nenhum convidado nesta aba.
             </p>
           )}
         </div>
