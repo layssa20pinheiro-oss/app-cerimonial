@@ -267,7 +267,7 @@ function DashboardEvento() {
     });
   };
 
-  // --- A MÁGICA DA PLANILHA ACONTECE AQUI ---
+  // --- A NOVA MÁGICA DA PLANILHA (AGORA COM MESA) ---
   const importarPlanilha = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -275,20 +275,19 @@ function DashboardEvento() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const texto = event.target.result;
-      const linhas = texto.split("\n"); // Separa as linhas do arquivo
+      const linhas = texto.split("\n");
       let totalImportados = 0;
 
       linhas.forEach((linha, index) => {
-        // Pula a linha 1 (onde deve estar escrito "Nome" e "Telefone")
-        if (index === 0) return;
-        if (!linha.trim()) return; // Pula linhas vazias
+        if (index === 0) return; // Pula o cabeçalho
+        if (!linha.trim()) return;
 
-        // Corta a linha onde tiver vírgula ou ponto e vírgula
+        // Corta a linha e pega Nome, Telefone e Mesa
         const colunas = linha.split(/;|,/);
         const nomeConvidado = colunas[0] ? colunas[0].trim() : "";
         const telefoneConvidado = colunas[1] ? colunas[1].trim() : "";
+        const mesaConvidado = colunas[2] ? colunas[2].trim() : ""; // Pegando a mesa da coluna C!
 
-        // Se tiver pelo menos o nome, ele salva no banco de dados!
         if (nomeConvidado) {
           const convidadosRef = ref(
             database,
@@ -297,21 +296,21 @@ function DashboardEvento() {
           push(convidadosRef, {
             nome: nomeConvidado,
             telefone: telefoneConvidado,
-            status: "pendente", // Ainda não respondeu o convite
+            mesa: mesaConvidado, // Salva a mesa direto do Excel
+            status: "pendente",
             checkin: false,
-            mesa: "",
           });
           totalImportados++;
         }
       });
 
       alert(
-        `🎉 Sucesso! ${totalImportados} convidados foram importados com sucesso!`
+        `🎉 Sucesso! ${totalImportados} convidados importados (com as mesas)!`
       );
-      e.target.value = ""; // Limpa o botão depois de usar
+      e.target.value = "";
     };
 
-    reader.readAsText(file, "UTF-8"); // Lê arquivos com acentos (ç, ã, é)
+    reader.readAsText(file, "UTF-8");
   };
 
   return (
@@ -379,7 +378,7 @@ function DashboardEvento() {
           </h2>
         </div>
 
-        {/* 1. Bloco de Importar Lista (NOVO!) */}
+        {/* 1. Bloco de Importar Lista */}
         <div
           style={{
             backgroundColor: "white",
@@ -409,8 +408,8 @@ function DashboardEvento() {
               marginBottom: "15px",
             }}
           >
-            Crie um Excel com as colunas <b>Nome</b> e <b>Telefone</b>, salve
-            como <b>.CSV</b> e envie aqui:
+            Crie um Excel com as colunas <b>Nome</b>, <b>Telefone</b> e{" "}
+            <b>Mesa</b>, salve como <b>.CSV</b> e envie aqui:
           </p>
 
           <input
@@ -515,7 +514,7 @@ function DashboardEvento() {
           </div>
         </div>
 
-        {/* 3. Bloco da Portaria */}
+        {/* 3. Bloco da Recepção (Com novo título e cor) */}
         <div
           style={{
             backgroundColor: "white",
@@ -534,7 +533,7 @@ function DashboardEvento() {
           >
             <span style={{ fontSize: "22px" }}>📋</span>
             <h3 style={{ margin: 0, color: "#333", fontSize: "18px" }}>
-              Área da Portaria
+              Recepção dos convidados
             </h3>
           </div>
           <p
@@ -545,15 +544,15 @@ function DashboardEvento() {
               marginBottom: "15px",
             }}
           >
-            Acesse a lista de confirmados para dar o check-in na porta do
-            evento.
+            Acesse a lista para dar o check-in na porta do evento.
           </p>
+          {/* O botão preto virou verde-água! */}
           <Link
             to={`/portaria/${idCasal}`}
             style={{
               display: "block",
               padding: "12px 20px",
-              backgroundColor: "#333",
+              backgroundColor: "#2cbdbd",
               color: "white",
               textDecoration: "none",
               borderRadius: "8px",
