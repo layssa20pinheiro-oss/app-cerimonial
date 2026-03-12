@@ -53,6 +53,7 @@ function PainelAdmin() {
   const [nomeCasal, setNomeCasal] = useState("");
   const [dataEvento, setDataEvento] = useState("");
   const [casamentos, setCasamentos] = useState([]);
+  const [abaAtiva, setAbaAtiva] = useState("proximos"); // Abas para organizar eventos!
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -93,6 +94,57 @@ function PainelAdmin() {
       .catch((error) => alert("Erro ao criar: " + error.message));
   };
 
+  // --- NOVA FUNÇÃO: DELETAR EVENTO ---
+  const deletarEvento = (e, idUrl, nome) => {
+    e.stopPropagation(); // Impede de abrir a página do evento ao clicar na lixeira
+    if (
+      window.confirm(
+        `⚠️ Tem certeza que deseja excluir o evento "${nome}"? Isso apagará a lista inteira deste evento!`
+      )
+    ) {
+      const eventoRef = ref(database, `casamentos_cadastrados/${idUrl}`);
+      set(eventoRef, null); // Apaga o evento
+
+      const convidadosRef = ref(database, `convidados_por_casal/${idUrl}`);
+      set(convidadosRef, null); // Bônus: Limpa os convidados desse evento também!
+    }
+  };
+
+  // --- LÓGICA DE EVENTOS PASSADOS E PRÓXIMOS ---
+  const hoje = new Date().toISOString().split("T")[0]; // Pega a data de hoje!
+
+  const eventosFiltrados = casamentos.filter((casal) => {
+    if (abaAtiva === "proximos") {
+      // Aparece aqui se não tiver data OU se a data for hoje ou no futuro
+      return !casal.data || casal.data >= hoje;
+    } else {
+      // Aparece na aba de passados se a data for menor que hoje
+      return casal.data && casal.data < hoje;
+    }
+  });
+
+  // Ordena para o evento mais próximo aparecer primeiro!
+  if (abaAtiva === "proximos") {
+    eventosFiltrados.sort((a, b) =>
+      (a.data || "9999") > (b.data || "9999") ? 1 : -1
+    );
+  } else {
+    eventosFiltrados.sort((a, b) => (a.data < b.data ? 1 : -1));
+  }
+
+  const estiloAba = (nomeAba) => ({
+    flex: 1,
+    padding: "12px",
+    textAlign: "center",
+    backgroundColor: abaAtiva === nomeAba ? "#2cbdbd" : "white",
+    color: abaAtiva === nomeAba ? "white" : "#666",
+    fontWeight: "bold",
+    cursor: "pointer",
+    borderBottom: abaAtiva === nomeAba ? "3px solid #1a8b8b" : "1px solid #eee",
+    transition: "all 0.3s",
+    fontSize: "14px",
+  });
+
   return (
     <div
       style={{
@@ -117,6 +169,7 @@ function PainelAdmin() {
       <div
         style={{ padding: "20px", maxWidth: "600px", margin: "-20px auto 0" }}
       >
+        {/* Formulário de Criar */}
         <div
           style={{
             backgroundColor: "white",
@@ -173,8 +226,34 @@ function PainelAdmin() {
           </form>
         </div>
 
+        {/* ABAS INTELIGENTES */}
+        <div
+          style={{
+            display: "flex",
+            backgroundColor: "white",
+            borderRadius: "10px",
+            overflow: "hidden",
+            marginBottom: "20px",
+            boxShadow: "0 2px 5px rgba(0,0,0,0.05)",
+          }}
+        >
+          <div
+            onClick={() => setAbaAtiva("proximos")}
+            style={estiloAba("proximos")}
+          >
+            Próximos Eventos
+          </div>
+          <div
+            onClick={() => setAbaAtiva("anteriores")}
+            style={estiloAba("anteriores")}
+          >
+            Eventos Anteriores
+          </div>
+        </div>
+
+        {/* Lista de Eventos */}
         <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-          {casamentos.map((casal) => (
+          {eventosFiltrados.map((casal) => (
             <div
               key={casal.id}
               onClick={() => navigate(`/evento/${casal.idUrl}`)}
@@ -185,15 +264,15 @@ function PainelAdmin() {
                 boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
                 display: "flex",
                 alignItems: "center",
-                gap: "20px",
+                gap: "15px",
                 cursor: "pointer",
                 transition: "transform 0.2s",
               }}
             >
               <div
                 style={{
-                  width: "65px",
-                  height: "65px",
+                  width: "60px",
+                  height: "60px",
                   borderRadius: "50%",
                   backgroundColor: "#f0f0f0",
                   display: "flex",
@@ -207,6 +286,7 @@ function PainelAdmin() {
               >
                 {pegarIniciais(casal.nomeExibicao)}
               </div>
+
               <div style={{ flex: 1 }}>
                 <p
                   style={{
@@ -221,15 +301,6 @@ function PainelAdmin() {
                     : "Sem data"}{" "}
                   • Evento
                 </p>
-                <p
-                  style={{
-                    margin: "0 0 2px 0",
-                    fontSize: "14px",
-                    color: "#888",
-                  }}
-                >
-                  {casal.tipo || "Casamento"}
-                </p>
                 <h3
                   style={{
                     margin: "0",
@@ -241,13 +312,33 @@ function PainelAdmin() {
                   {casal.nomeExibicao}
                 </h3>
               </div>
+
+              {/* BOTÃO DE LIXEIRA DO EVENTO! */}
+              <div
+                onClick={(e) =>
+                  deletarEvento(e, casal.idUrl, casal.nomeExibicao)
+                }
+                style={{
+                  padding: "10px",
+                  fontSize: "20px",
+                  color: "#ff4d4d",
+                  cursor: "pointer",
+                  borderRadius: "50%",
+                }}
+                title="Excluir Evento"
+              >
+                🗑️
+              </div>
             </div>
           ))}
-          {casamentos.length === 0 && (
+
+          {eventosFiltrados.length === 0 && (
             <p
               style={{ textAlign: "center", color: "#999", marginTop: "20px" }}
             >
-              Nenhum evento criado ainda.
+              {abaAtiva === "proximos"
+                ? "Nenhum evento agendado."
+                : "Nenhum evento passado arquivado."}
             </p>
           )}
         </div>
@@ -255,7 +346,6 @@ function PainelAdmin() {
     </div>
   );
 }
-
 // --- 3. DASHBOARD DO EVENTO ---
 function DashboardEvento() {
   const { idCasal } = useParams();
